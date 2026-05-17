@@ -11,7 +11,12 @@ import { createBaseApp, createProtectedApp } from "@/libs/base";
 import { hasPermission } from "@/middleware/permission";
 import { Prisma } from "@generated/prisma";
 import { DeleteSystemError } from "../rbac/error";
-import { CreateSystemError, DeleteSelfError, UpdateSystemError } from "./error";
+import {
+  CreateSystemError,
+  DeleteSelfError,
+  DuplicateUserFieldException,
+  UpdateSystemError,
+} from "./error";
 
 const FEATURE_NAME = "user_management";
 
@@ -56,6 +61,7 @@ const protectedUser = createProtectedApp()
     "/",
     async ({ body, set, log, locale }) => {
       const data = await UserService.createUser(body, log, locale);
+
       return successResponse(
         set,
         data,
@@ -244,6 +250,10 @@ export const user = createBaseApp({ tags: ["User"] }).group("/users", (app) =>
           null,
           locale,
         );
+      }
+
+      if (error instanceof DuplicateUserFieldException) {
+        return errorResponse(set, 403, error.message, null, locale);
       }
 
       if (error instanceof UpdateSystemError) {

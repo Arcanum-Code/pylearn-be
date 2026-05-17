@@ -26,3 +26,10 @@ export class UpdateSystemError extends Error {
     this.key = "user.updateSystemAdmin";
   }
 }
+
+export class DuplicateUserFieldException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DuplicateUserFieldException";
+  }
+}

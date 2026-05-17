@@ -1,10 +1,7 @@
 services:
   app:
-    build: .
-    image: pylearn-be
+    image: ghcr.io/titanaprilian/pylearn-be:main
     container_name: pylearn-backend
-    ports:
-      - "4000:4000"
     env_file:
       - .env.docker
     depends_on:
@@ -27,25 +24,41 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - pylearn-network
 
   frontend:
-    build:
-      context: ../pylearn-fe
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:4000
-    image: pylearn-fe
+    image: ghcr.io/titanaprilian/pylearn-fe:main
     container_name: pylearn-frontend
-    ports:
-      - "3000:3000"
     depends_on:
+      - app
+    networks:
+      - pylearn-network
+
+  caddy:
+    image: caddy:2
+    container_name: pylearn-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
       - app
     networks:
       - pylearn-network
 
 networks:
   pylearn-network:
-    name: pylearn-network
     driver: bridge
+
+volumes:
+  postgres-data:
+  caddy_data:
+  caddy_config:

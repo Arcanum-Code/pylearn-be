@@ -1,6 +1,11 @@
 import { prisma } from "@/libs/prisma";
 import type { CreateUserInput, UpdateUserInput } from "./schema";
-import { CreateSystemError, DeleteSelfError, UpdateSystemError } from "./error";
+import {
+  CreateSystemError,
+  DeleteSelfError,
+  DuplicateUserFieldException,
+  UpdateSystemError,
+} from "./error";
 import { DeleteSystemError } from "../rbac/error";
 import { Prisma } from "@generated/prisma";
 import type { Logger } from "pino";
@@ -112,14 +117,14 @@ export abstract class UserService {
     log: Logger,
     locale: string = "en",
   ) {
-    log.debug({ email: data.email, roleId: data.roleId }, "Creating new user");
+    log.debug(
+      { email: data.email, userId: data.userId, roleId: data.roleId },
+      "Creating new user",
+    );
 
     // 🛡️ SECURITY CHECK: Duplicate SuperAdmin
-    // If the user being created is a SuperAdmin, BLOCK IT. We need to make sure SuperAdmin is only one
     const role = await prisma.role.findUnique({
-      where: {
-        id: data.roleId,
-      },
+      where: { id: data.roleId },
     });
     if (role?.name === "SuperAdmin") {
       log.warn(
@@ -127,6 +132,20 @@ export abstract class UserService {
         "User creation blocked: Attempt to create duplicate SuperAdmin",
       );
       throw new CreateSystemError(locale);
+    }
+
+    // 🛡️ UNIQUE GUARD: Check if custom userId is already taken
+    if (data.userId) {
+      const existingUserId = await prisma.user.findUnique({
+        where: { userId: data.userId },
+      });
+      if (existingUserId) {
+        log.warn(
+          { userId: data.userId },
+          "User creation blocked: Unique userId collision",
+        );
+        throw new DuplicateUserFieldException("This User ID is already taken.");
+      }
     }
 
     const hashedPassword = await Bun.password.hash(data.password);
@@ -140,7 +159,12 @@ export abstract class UserService {
     });
 
     log.info(
-      { userId: user.id, email: user.email, roleId: user.roleId },
+      {
+        id: user.id,
+        email: user.email,
+        userId: user.userId,
+        roleId: user.roleId,
+      },
       "User created successfully",
     );
 
@@ -192,8 +216,26 @@ export abstract class UserService {
       updateData.password = await Bun.password.hash(updateData.password);
     }
 
+    // 🛡️ UNIQUE GUARD: Prevent updating to a userId taken by someone else
+    if (updateData.userId) {
+      const existingUserId = await prisma.user.findFirst({
+        where: {
+          userId: updateData.userId,
+          NOT: { id: id }, // Exclude the current user being edited
+        },
+      });
+      if (existingUserId) {
+        log.warn(
+          { id, attemptedUserId: updateData.userId },
+          "User update blocked: Unique userId collision",
+        );
+        throw new DuplicateUserFieldException(
+          "This User ID is already taken by another account.",
+        );
+      }
+    }
+
     // 🛡️ SECURITY CHECK: Inactive SuperAdmin
-    // If the user update the status field to inactive and the user is a SuperAdmin, BLOCK IT.
     if (updateData.isActive === false) {
       const existingUser = await prisma.user.findUnique({
         where: { id },
@@ -215,7 +257,10 @@ export abstract class UserService {
       data: updateData,
     });
 
-    log.info({ userId: id, email: user.email }, "User updated successfully");
+    log.info(
+      { id: user.id, email: user.email, userId: user.userId },
+      "User updated successfully",
+    );
 
     return {
       ...user,

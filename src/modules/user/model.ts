@@ -8,6 +8,7 @@ import {
 export const UserSafe = z.object({
   id: z.string(),
   email: z.email(),
+  userId: z.string().nullable(),
   name: z.string().nullable(),
   isActive: z.boolean(),
   roleId: z.string(),

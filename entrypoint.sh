@@ -31,8 +31,8 @@ ls -la node_modules/.prisma/client/ 2>/dev/null || echo "⚠️ .prisma/client d
 echo "🗄️ Running database migrations"
 bunx prisma migrate deploy
 
-echo "🌱 Running database seed"
-bunx prisma db seed || echo "⚠️ Seed skipped (already seeded)"
+# echo "🌱 Running database seed"
+# bunx prisma db seed || echo "⚠️ Seed skipped (already seeded)"
 
 # Print final directory structure before starting
 echo "📂 Final directory structure:"

@@ -155,9 +155,7 @@ export const GetQuizAnswersQuerySchema = z.object({
 
 export const CreateQuizAnswerSchema = z.object({
   quizAttemptId: z.string().min(1, "Quiz Attempt ID is required"),
-
   quizQuestionId: z.string().min(1, "Quiz Question ID is required"),
-
   answerText: z.string().min(1, "Answer text is required"),
 });
 
@@ -171,7 +169,6 @@ export const QuizAnswerParamSchema = z.object({
 
 export const CreateBulkQuizAnswerSchema = z.object({
   quizAttemptId: z.string().min(1, "Quiz Attempt ID is required"),
-  quizId: z.string().min(1, "Quiz ID is required"),
   quizLevelId: z.string().min(1, "Quiz Level ID is required"),
   answers: z
     .array(

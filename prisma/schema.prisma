@@ -52,18 +52,17 @@ model Material {
 }
 
 model Quiz {
-  id          BigInt        @id @default(autoincrement())
+  id          BigInt      @id @default(autoincrement())
   materialId  BigInt
-  material    Material      @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  material    Material    @relation(fields: [materialId], references: [id], onDelete: Cascade)
   title       String
-  description String?       @db.Text
+  description String?     @db.Text
   startTime   DateTime?
   endTime     DateTime?
-  isPublished Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  isPublished Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   levels      QuizLevel[]
-  QuizAttempt QuizAttempt[]
 }
 
 model QuizLevel {
@@ -104,11 +103,10 @@ model QuizAttempt {
   student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
   startedAt   DateTime     @default(now())
   submittedAt DateTime?
+  score       Float?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   answers     QuizAnswer[]
-  Quiz        Quiz?        @relation(fields: [quizId], references: [id])
-  quizId      BigInt?
 
   @@unique([quizLevelId, studentId])
 }
@@ -120,7 +118,7 @@ model QuizAnswer {
   quizQuestionId BigInt
   quizQuestion   QuizQuestion @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
   answerText     String       @db.Text
-  isCorrect      Boolean?
+  isCorrect      Boolean
   answeredAt     DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

@@ -100,6 +100,26 @@ export const QuizAttemptSafe = z.object({
   updatedAt: z.string().datetime(),
 });
 
+export const QuizResultQuestionSafe = z.object({
+  questionId: z.string(),
+  questionText: z.string(),
+  maxScore: z.number(),
+  userAnswer: z.string().nullable(),
+  correctAnswer: z.string(),
+  isCorrect: z.boolean(),
+});
+
+export const QuizResultSafe = z.object({
+  attemptId: z.string(),
+  quizLevelId: z.string(),
+  quizTitle: z.string(),
+  levelTitle: z.string(),
+  score: z.number().nullable(),
+  startedAt: z.string().datetime(),
+  submittedAt: z.string().datetime(),
+  details: z.array(QuizResultQuestionSafe),
+});
+
 export const QuizLevelProgressSchema = z.object({
   levelId: z.string(),
   title: z.string(),
@@ -186,6 +206,7 @@ export const QuizModel = {
   createAttemptResult: createResponseSchema(QuizAttemptSafe),
   submitAttemptResult: createResponseSchema(QuizAttemptSafe),
   quizProgress: createResponseSchema(QuizProgressSafe),
+  quizAttemptResult: createResponseSchema(QuizResultSafe),
 
   // Answer
   answer: createResponseSchema(QuizAnswerSafe),
@@ -235,6 +256,7 @@ export type QuizModelType = {
   createAttemptResult: z.infer<typeof QuizModel.createAttemptResult>;
   submitAttemptResult: z.infer<typeof QuizModel.submitAttemptResult>;
   quizProgress: z.infer<typeof QuizModel.quizProgress>;
+  quizAttemptResult: z.infer<typeof QuizModel.quizAttemptResult>;
 
   // Answer
   answer: z.infer<typeof QuizModel.answer>;

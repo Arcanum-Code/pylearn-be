@@ -375,11 +375,13 @@ const attemptRoutes = createProtectedApp()
   )
   .patch(
     "/:id/submit",
-    async ({ params, set, log, locale }) => {
+    async ({ params, user, set, log, locale }) => {
       const attempt = await QuizAttemptService.submitAttempt(
         BigInt(params.id),
+        user.id,
         log,
       );
+
       return ok({ set, locale }, attempt, "quizAttempt.submitSuccess");
     },
     {
@@ -411,7 +413,30 @@ const attemptRoutes = createProtectedApp()
       },
       beforeHandle: hasPermission(FEATURE, "read"),
     },
+  )
+  .get(
+    "/:id/results",
+    async ({ params, user, set, log, locale }) => {
+      const results = await QuizAttemptService.getAttemptResults(
+        params.id,
+        user.id,
+        log,
+      );
+
+      return ok({ set, locale }, results, "quizAttempt.resultsSuccess");
+    },
+    {
+      params: QuizAttemptParamSchema,
+      response: {
+        200: QuizModel.quizAttemptResult,
+        400: QuizModel.error,
+        404: QuizModel.error,
+        500: QuizModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE, "read"),
+    },
   );
+
 const answerRoutes = createProtectedApp()
   .get(
     "/",

@@ -691,16 +691,15 @@ export abstract class QuizAttemptService {
   }
 
   static async submitAttempt(
-    attemptId: string,
+    attemptId: bigint,
     studentId: string,
     log: Logger,
   ) {
-    const id = BigInt(attemptId);
     log.debug({ attemptId, studentId }, "Submitting and grading quiz attempt");
 
     const attempt = await prisma.quizAttempt.findFirst({
       where: {
-        id: id,
+        id: attemptId,
         studentId: studentId,
         submittedAt: null,
       },
@@ -727,7 +726,7 @@ export abstract class QuizAttemptService {
 
     const correctAnswers = await prisma.quizAnswer.findMany({
       where: {
-        quizAttemptId: id,
+        quizAttemptId: attemptId,
         isCorrect: true,
       },
       select: {
@@ -744,7 +743,7 @@ export abstract class QuizAttemptService {
     const finalScore = totalQuestions > 0 ? allScore / totalQuestions : 0;
 
     const finalizedAttempt = await prisma.quizAttempt.update({
-      where: { id: id },
+      where: { id: attemptId },
       data: {
         submittedAt: new Date(),
         score: finalScore,
@@ -758,6 +757,89 @@ export abstract class QuizAttemptService {
     );
 
     return mapAttempt(finalizedAttempt);
+  }
+
+  static async getAttemptResults(
+    attemptId: string,
+    studentId: string,
+    log: Logger,
+  ) {
+    const id = BigInt(attemptId);
+    log.debug(
+      { attemptId, studentId },
+      "Fetching detailed quiz attempt results",
+    );
+
+    // 1. Fetch Attempt, related QuizLevel, all Questions, and the Student's Answers
+    const attempt = await prisma.quizAttempt.findFirst({
+      where: {
+        id: id,
+        studentId: studentId, // Security guard: students can only see their own results
+      },
+      include: {
+        quizLevel: {
+          include: {
+            quiz: { select: { title: true } },
+            questions: { orderBy: { questionOrder: "asc" } },
+          },
+        },
+        answers: true, // Fetch all answers submitted in this specific attempt
+      },
+    });
+
+    if (!attempt) {
+      log.warn(
+        { attemptId, studentId },
+        "Result fetch blocked: Attempt not found or unauthorized",
+      );
+      throw new QuizAttemptContextException(
+        "Attempt not found or you do not have permission to view it.",
+      );
+    }
+
+    // 2. Guard: Prevent viewing results if the attempt is still in progress!
+    if (!attempt.submittedAt) {
+      log.warn(
+        { attemptId },
+        "Result fetch blocked: Attempt is not yet submitted",
+      );
+      throw new QuizAttemptValidationError(
+        "Cannot view detailed results for an unsubmitted attempt. Please submit the quiz first.",
+      );
+    }
+
+    // 3. Map every question against the user's answers
+    const details = attempt.quizLevel.questions.map((question) => {
+      // Find the specific answer the user gave for this question
+      const userAnswerRecord = attempt.answers.find(
+        (a) => a.quizQuestionId === question.id,
+      );
+
+      return {
+        questionId: question.id.toString(),
+        questionText: question.questionText,
+        maxScore: question.maxScore,
+        userAnswer: userAnswerRecord?.answerText ?? null, // Will be null if skipped
+        correctAnswer: question.answerText,
+        isCorrect: userAnswerRecord?.isCorrect ?? false, // Automatically wrong if skipped
+      };
+    });
+
+    log.info(
+      { attemptId, totalQuestions: details.length },
+      "Detailed results compiled successfully",
+    );
+
+    return {
+      attemptId: attempt.id.toString(),
+      quizLevelId: attempt.quizLevelId.toString(),
+      quizTitle: attempt.quizLevel.quiz.title,
+      levelTitle: attempt.quizLevel.title,
+      score: attempt.score,
+      startedAt: attempt.startedAt.toISOString(),
+      submittedAt: attempt.submittedAt.toISOString(), // Safe to cast because of our Guard above
+      details: details,
+    };
   }
 }
 

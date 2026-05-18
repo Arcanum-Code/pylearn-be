@@ -441,4 +441,125 @@ describe("Quiz Attempt Test Suite", () => {
       expect(json.data.attemptHistory).toHaveLength(1);
     });
   });
+
+  // =========================================
+  // GET /quizzes/attempts/:id/results
+  // =========================================
+  describe.only("GET /quizzes/attempts/:id/results", () => {
+    it("should return detailed evaluation mapping for a submitted attempt", async () => {
+      const role = await createTestRoleWithPermissions("ResultReaderRole", [
+        { featureName: "quiz_management", action: "read" },
+      ]);
+
+      const { user, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+      const { quiz, level } = await createMockQuizWithLevel(user.id);
+
+      // Create two questions for the level
+      const q1 = await prisma.quizQuestion.create({
+        data: {
+          quizLevelId: level.id,
+          questionText: "What is Bun?",
+          answerText: "A JS runtime",
+          maxScore: 50,
+          questionOrder: 1,
+        },
+      });
+
+      const q2 = await prisma.quizQuestion.create({
+        data: {
+          quizLevelId: level.id,
+          questionText: "Is Prisma an ORM?",
+          answerText: "Yes",
+          maxScore: 50,
+          questionOrder: 2,
+        },
+      });
+
+      // Create a finalized attempt
+      const attempt = await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: level.id,
+          studentId: user.id,
+          submittedAt: new Date(),
+          score: 50, // They got 1 out of 2 right
+        },
+      });
+
+      // Answer Q1 correctly, but SKIP Q2
+      await prisma.quizAnswer.create({
+        data: {
+          quizAttemptId: attempt.id,
+          quizQuestionId: q1.id,
+          answerText: "A JS runtime",
+          isCorrect: true,
+        },
+      });
+
+      const res = await app.handle(
+        new Request(`http://localhost/quizzes/attempts/${attempt.id}/results`, {
+          method: "GET",
+          headers: {
+            ...authHeaders,
+            "x-forwarded-for": randomIp(),
+          },
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+
+      // Verify overarching data
+      expect(json.data.attemptId).toBe(attempt.id.toString());
+      expect(json.data.score).toBe(50);
+      expect(json.data.details).toHaveLength(2);
+
+      // Verify Question 1 (Answered Correctly)
+      const parsedQ1 = json.data.details.find(
+        (d: any) => d.questionId === q1.id.toString(),
+      );
+      expect(parsedQ1.isCorrect).toBe(true);
+      expect(parsedQ1.userAnswer).toBe("A JS runtime");
+
+      // Verify Question 2 (Skipped - Handled Gracefully)
+      const parsedQ2 = json.data.details.find(
+        (d: any) => d.questionId === q2.id.toString(),
+      );
+      expect(parsedQ2.isCorrect).toBe(false);
+      expect(parsedQ2.userAnswer).toBeNull();
+      expect(parsedQ2.correctAnswer).toBe("Yes");
+    });
+
+    it("should reject 400 if attempt is not yet submitted", async () => {
+      const role = await createTestRoleWithPermissions("ResultReaderRole", [
+        { featureName: "quiz_management", action: "read" },
+      ]);
+
+      const { user, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+      const { level } = await createMockQuizWithLevel(user.id);
+
+      const attempt = await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: level.id,
+          studentId: user.id,
+          submittedAt: null, // Still active
+        },
+      });
+
+      const res = await app.handle(
+        new Request(`http://localhost/quizzes/attempts/${attempt.id}/results`, {
+          method: "GET",
+          headers: {
+            ...authHeaders,
+            "x-forwarded-for": randomIp(),
+          },
+        }),
+      );
+
+      expect(res.status).toBe(400); // Throws QuizAttemptValidationError
+    });
+  });
 });

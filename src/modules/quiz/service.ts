@@ -1013,10 +1013,27 @@ export abstract class QuizAnswerService {
 // Shared utility
 // ─────────────────────────────────────────────
 function normalizeAnswer(text: string): string {
-  return text
-    .replace(/<\/?[^>]+(>|$)/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  return (
+    text
+      // 1. Convert structural opening AND closing tags (including lists) into spaces
+      //    so adjacent block inline values never smash together.
+      .replace(/<\/?(br|p|div|tr|td|li|ul|ol|h[1-6])\/?>/gi, " ")
+
+      // 2. Strip out any remaining inline/formatting tags safely (like <strong>, <a>, etc.)
+      .replace(/<\/?[^>]+(>|$)/g, "")
+
+      // 3. Convert HTML space entities back to true whitespace tokens
+      .replace(/&nbsp;/g, " ")
+
+      // 4. Collapse multi-spaces, tabs, and actual line breaks (\n) into a single clean space
+      .replace(/\s+/g, " ")
+
+      // 5. 🚀 NEW: Remove extra spaces before common punctuation marks (.,!?;;)
+      //    This turns "tag ." into "tag." and "word ," into "word,"
+      .replace(/\s+([.,!?;\s])/g, "$1")
+
+      // 6. Clean up outer margins and unify lowercase casing properties
+      .trim()
+      .toLowerCase()
+  );
 }

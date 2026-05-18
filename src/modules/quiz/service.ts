@@ -1012,7 +1012,11 @@ export abstract class QuizAnswerService {
 // ─────────────────────────────────────────────
 // Shared utility
 // ─────────────────────────────────────────────
-
 function normalizeAnswer(text: string): string {
-  return text.trim().toLowerCase();
+  return text
+    .replace(/<\/?[^>]+(>|$)/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }

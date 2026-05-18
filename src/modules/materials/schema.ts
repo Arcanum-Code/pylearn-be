@@ -41,17 +41,39 @@ export const CreateMaterialMeSchema = CreateMaterialSchema.omit({
 
 export const UpdateMaterialSchema = z
   .object({
-    lecturerId: z.string().optional(),
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
-    materialType: MaterialTypeEnum.optional(),
+    materialType: z
+      .enum(["text", "file", "video", "link"], {
+        errorMap: () => ({
+          message: 'Must be one of "text", "file", "video", or "link"',
+        }),
+      })
+      .optional(),
     content: z.string().optional(),
     sourceUrl: z.string().url().optional(),
     iconName: z.string().max(50).optional(),
-    isPublished: z.boolean().optional(),
+    isPublished: z
+      .preprocess((val) => {
+        if (val === "true" || val === true) return true;
+        if (val === "false" || val === false) return false;
+        return val;
+      }, z.boolean())
+      .optional(),
+    file: z
+      .instanceof(File)
+      .refine(
+        (file) => file.type === "application/pdf",
+        "Only PDF files are allowed",
+      )
+      .refine(
+        (file) => file.size <= 10 * 1024 * 1024,
+        "File size must be less than 10MB",
+      )
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update",
+    message: "At least one field must be provided for modification updating",
   });
 
 export const MaterialParamSchema = z.object({

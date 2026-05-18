@@ -1,5 +1,5 @@
 import { prisma } from "@/libs/prisma";
-import type { CreateMaterialInput, UpdateMaterialInput } from "./schema";
+import type { CreateMaterialInput } from "./schema";
 import { Prisma } from "@generated/prisma";
 import type { Logger } from "pino";
 import { join } from "path";
@@ -193,17 +193,75 @@ export abstract class MaterialService {
     };
   }
 
-  static async updateMaterial(
-    id: bigint,
-    data: UpdateMaterialInput,
-    log: Logger,
-  ) {
-    log.debug({ materialId: id.toString() }, "Updating material");
+  static async updateMaterial(id: bigint, data: any, log: Logger) {
+    log.debug(
+      { materialId: id.toString() },
+      "Updating material with optional attachment",
+    );
 
-    const updateData: Prisma.MaterialUpdateInput = { ...data };
+    // 1. Fetch the existing record first to see if there is an old file we need to clean up
+    const existingMaterial = await prisma.material.findUniqueOrThrow({
+      where: { id },
+      select: { content: true },
+    });
 
+    let filePath: string | null = existingMaterial.content;
+
+    // 2. Process the newly uploaded file if present
+    if (data.file instanceof File) {
+      log.debug("Processing newly uploaded update PDF file...");
+
+      const uploadDir = join(process.cwd(), "storage", "materials");
+      await mkdir(uploadDir, { recursive: true });
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const fileName = `${uniqueSuffix}-${data.file.name.replace(/\s+/g, "_")}`;
+      const fullPath = join(uploadDir, fileName);
+
+      const bytesWritten = await Bun.write(fullPath, data.file);
+      log.debug(
+        { bytesWritten, path: fullPath },
+        "New update file saved to local storage",
+      );
+
+      // 🧹 Clean up the previous physical file if it exists to avoid leaking storage
+      if (
+        existingMaterial.content &&
+        existingMaterial.content.startsWith("/storage/materials/")
+      ) {
+        const oldFileFullPath = join(process.cwd(), existingMaterial.content);
+        try {
+          await Bun.file(oldFileFullPath).delete();
+          log.debug(
+            { oldPath: oldFileFullPath },
+            "Old file deleted from local storage",
+          );
+        } catch (err) {
+          log.warn(
+            { oldPath: oldFileFullPath, err },
+            "Failed to delete old file, continuing anyway",
+          );
+        }
+      }
+
+      filePath = `/storage/materials/${fileName}`;
+    }
+
+    // 3. Build atomic update mapping
+    const updateData: Prisma.MaterialUpdateInput = {
+      title: data.title !== undefined ? data.title : undefined,
+      materialType:
+        data.materialType !== undefined ? data.materialType : undefined,
+      content:
+        data.file instanceof File
+          ? filePath
+          : data.content !== undefined
+            ? data.content
+            : undefined,
+    };
+
+    // 4. Handle publishing timestamp checks mirroring createMaterialMe string constraints
     if (data.isPublished !== undefined) {
-      if (data.isPublished === true) {
+      if (data.isPublished === "true" || data.isPublished === true) {
         updateData.publishedAt = new Date();
       } else {
         updateData.publishedAt = null;
@@ -218,7 +276,7 @@ export abstract class MaterialService {
 
     log.info(
       { materialId: id.toString(), title: material.title },
-      "Material updated successfully",
+      "Material updated successfully with attachments",
     );
 
     return {

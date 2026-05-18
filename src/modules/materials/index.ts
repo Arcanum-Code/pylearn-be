@@ -133,7 +133,10 @@ const protectedMaterials = createProtectedApp()
     "/:id",
     async ({ params, body, set, log, locale }) => {
       const id = BigInt(params.id);
+
+      // The body payload will now correctly contain either text fields or the File object
       const data = await MaterialService.updateMaterial(id, body, log);
+
       return successResponse(
         set,
         data,
@@ -146,6 +149,7 @@ const protectedMaterials = createProtectedApp()
     {
       params: MaterialParamSchema,
       body: UpdateMaterialSchema,
+      type: "multipart/form-data",
       response: {
         200: MaterialModel.updateResult,
         400: MaterialModel.validationError,

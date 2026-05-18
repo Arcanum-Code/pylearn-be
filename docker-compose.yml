@@ -34,6 +34,8 @@ services:
     container_name: pylearn-frontend
     depends_on:
       - app
+    environment:
+      - API_URL=http://backend:4000
     networks:
       - pylearn-network
 

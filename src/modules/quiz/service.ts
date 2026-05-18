@@ -690,17 +690,74 @@ export abstract class QuizAttemptService {
     return mapAttempt(attempt);
   }
 
-  static async submitAttempt(attemptId: bigint, log: Logger) {
-    log.debug({ attemptId: attemptId.toString() }, "Submitting attempt");
+  static async submitAttempt(
+    attemptId: string,
+    studentId: string,
+    log: Logger,
+  ) {
+    const id = BigInt(attemptId);
+    log.debug({ attemptId, studentId }, "Submitting and grading quiz attempt");
 
-    const attempt = await prisma.quizAttempt.update({
-      where: { id: attemptId },
-      data: { submittedAt: new Date() },
-      select: ATTEMPT_SELECT,
+    const attempt = await prisma.quizAttempt.findFirst({
+      where: {
+        id: id,
+        studentId: studentId,
+        submittedAt: null,
+      },
+      include: {
+        quizLevel: {
+          select: {
+            _count: { select: { questions: true } },
+          },
+        },
+      },
     });
 
-    log.info({ attemptId: attempt.id.toString() }, "Attempt submitted");
-    return mapAttempt(attempt);
+    if (!attempt) {
+      log.warn(
+        { attemptId, studentId },
+        "Submit failed: Attempt not found or already submitted",
+      );
+      throw new QuizAttemptContextException(
+        "This attempt is either invalid or has already been submitted.",
+      );
+    }
+
+    const totalQuestions = attempt.quizLevel._count.questions;
+
+    const correctAnswers = await prisma.quizAnswer.findMany({
+      where: {
+        quizAttemptId: id,
+        isCorrect: true,
+      },
+      select: {
+        quizQuestion: {
+          select: { maxScore: true },
+        },
+      },
+    });
+
+    const allScore = correctAnswers.reduce(
+      (sum, ans) => sum + ans.quizQuestion.maxScore,
+      0,
+    );
+    const finalScore = totalQuestions > 0 ? allScore / totalQuestions : 0;
+
+    const finalizedAttempt = await prisma.quizAttempt.update({
+      where: { id: id },
+      data: {
+        submittedAt: new Date(),
+        score: finalScore,
+      },
+      select: ATTEMPT_SELECT, // Uses your updated selection object
+    });
+
+    log.info(
+      { attemptId, score: finalScore, totalQuestions },
+      "Attempt submitted and graded successfully",
+    );
+
+    return mapAttempt(finalizedAttempt);
   }
 }
 
@@ -761,7 +818,6 @@ export abstract class QuizAnswerService {
     log: Logger,
   ) {
     const quizAttemptId = BigInt(data.quizAttemptId);
-    const quizId = BigInt(data.quizId);
     const quizLevelId = BigInt(data.quizLevelId);
 
     log.debug(
@@ -769,13 +825,12 @@ export abstract class QuizAnswerService {
       "Processing bulk quiz answers submission",
     );
 
-    // 1. Context & Security Guard: Verify the attempt is active and belongs to the student
     const activeAttempt = await prisma.quizAttempt.findFirst({
       where: {
         id: quizAttemptId,
-        quizId: quizId,
+        quizLevelId: quizLevelId,
         studentId: studentId,
-        submittedAt: null, // Guard: Must not be already finalized
+        submittedAt: null,
       },
     });
 
@@ -785,23 +840,19 @@ export abstract class QuizAnswerService {
       );
     }
 
-    // 2. Fetch all valid questions belonging specifically to this quiz level
     const validQuestions = await prisma.quizQuestion.findMany({
       where: { quizLevelId: quizLevelId },
       select: { id: true, answerText: true },
     });
 
-    // Turn it into a Map for lightning-fast O(1) lookups
     const questionMap = new Map(
       validQuestions.map((q) => [q.id, q.answerText]),
     );
 
-    // 3. Prepare the database rows & compute correctness in-memory
     const recordsToInsert = data.answers.map((incoming) => {
       const questionId = BigInt(incoming.quizQuestionId);
       const correctAnswerText = questionMap.get(questionId);
 
-      // Guard: Ensure the question actually belongs to the claimed quiz level
       if (correctAnswerText === undefined) {
         throw new QuizAttemptValidationError(
           `Question ID ${incoming.quizQuestionId} does not belong to the requested quiz level.`,
@@ -820,10 +871,7 @@ export abstract class QuizAnswerService {
       };
     });
 
-    // 4. Atomic Bulk Insert via Transaction
-    // Using a transaction + deleteMany + createMany handles updates gracefully if they retry/overwrite answers
     const savedAnswers = await prisma.$transaction(async (tx) => {
-      // Optional: Clear prior answers for these questions in this attempt if allowing re-saves
       const targetQuestionIds = recordsToInsert.map((r) => r.quizQuestionId);
       await tx.quizAnswer.deleteMany({
         where: {
@@ -832,12 +880,10 @@ export abstract class QuizAnswerService {
         },
       });
 
-      // Insert all records in one efficient batch query
       await tx.quizAnswer.createMany({
         data: recordsToInsert,
       });
 
-      // Fetch back the created rows to return to the client mapped correctly
       return tx.quizAnswer.findMany({
         where: {
           quizAttemptId,

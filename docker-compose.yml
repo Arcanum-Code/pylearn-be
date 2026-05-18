@@ -4,6 +4,8 @@ services:
     container_name: pylearn-backend
     env_file:
       - .env.docker
+    volumes:
+      - ./storage:/app/storage
     depends_on:
       db:
         condition: service_healthy

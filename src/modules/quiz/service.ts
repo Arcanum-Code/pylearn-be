@@ -817,20 +817,26 @@ export abstract class QuizAttemptService {
 
   static async getAttemptResults(
     attemptId: string,
-    studentId: string,
+    ctx: { userId: string; userRole: string }, // 🔄 Replaced studentId string with a structured session context
     log: Logger,
   ) {
     const id = BigInt(attemptId);
     log.debug(
-      { attemptId, studentId },
-      "Fetching detailed quiz attempt results",
+      { attemptId, user: ctx.userId, role: ctx.userRole },
+      "Fetching detailed quiz attempt results with role-based visibility",
     );
 
-    // 1. Fetch Attempt, related QuizLevel, all Questions, and the Student's Answers
+    // 1. Determine access privileges based on security context
+    const isPrivilegedRole =
+      ctx.userRole === "SuperAdmin" || ctx.userRole === "Dosen";
+
+    // 2. Fetch Attempt with conditional ownership enforcement
     const attempt = await prisma.quizAttempt.findFirst({
       where: {
         id: id,
-        studentId: studentId, // Security guard: students can only see their own results
+        // 🛡️ Security Guard: If they are NOT an admin/dosen, they can ONLY see their own records.
+        // If they ARE an admin/dosen, this condition is omitted entirely.
+        ...(isPrivilegedRole ? {} : { studentId: ctx.userId }),
       },
       include: {
         quizLevel: {
@@ -839,21 +845,21 @@ export abstract class QuizAttemptService {
             questions: { orderBy: { questionOrder: "asc" } },
           },
         },
-        answers: true, // Fetch all answers submitted in this specific attempt
+        answers: true,
       },
     });
 
     if (!attempt) {
       log.warn(
-        { attemptId, studentId },
-        "Result fetch blocked: Attempt not found or unauthorized",
+        { attemptId, userId: ctx.userId, role: ctx.userRole },
+        "Result fetch blocked: Attempt not found, or user lacks clearance",
       );
       throw new QuizAttemptContextException(
         "Attempt not found or you do not have permission to view it.",
       );
     }
 
-    // 2. Guard: Prevent viewing results if the attempt is still in progress!
+    // 3. Guard: Prevent viewing results if the attempt is still in progress
     if (!attempt.submittedAt) {
       log.warn(
         { attemptId },
@@ -864,9 +870,8 @@ export abstract class QuizAttemptService {
       );
     }
 
-    // 3. Map every question against the user's answers
+    // 4. Map every question against the user's answers
     const details = attempt.quizLevel.questions.map((question) => {
-      // Find the specific answer the user gave for this question
       const userAnswerRecord = attempt.answers.find(
         (a) => a.quizQuestionId === question.id,
       );
@@ -875,14 +880,18 @@ export abstract class QuizAttemptService {
         questionId: question.id.toString(),
         questionText: question.questionText,
         maxScore: question.maxScore,
-        userAnswer: userAnswerRecord?.answerText ?? null, // Will be null if skipped
+        userAnswer: userAnswerRecord?.answerText ?? null,
         correctAnswer: question.answerText,
-        isCorrect: userAnswerRecord?.isCorrect ?? false, // Automatically wrong if skipped
+        isCorrect: userAnswerRecord?.isCorrect ?? false,
       };
     });
 
     log.info(
-      { attemptId, totalQuestions: details.length },
+      {
+        attemptId,
+        totalQuestions: details.length,
+        viewAsPrivileged: isPrivilegedRole,
+      },
       "Detailed results compiled successfully",
     );
 
@@ -893,7 +902,7 @@ export abstract class QuizAttemptService {
       levelTitle: attempt.quizLevel.title,
       score: attempt.score,
       startedAt: attempt.startedAt.toISOString(),
-      submittedAt: attempt.submittedAt.toISOString(), // Safe to cast because of our Guard above
+      submittedAt: attempt.submittedAt.toISOString(),
       details: details,
     };
   }

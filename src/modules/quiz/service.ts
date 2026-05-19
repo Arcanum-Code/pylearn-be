@@ -759,6 +759,62 @@ export abstract class QuizAttemptService {
     return mapAttempt(finalizedAttempt);
   }
 
+  static async getAllAttemptsResults(
+    filters: { quizLevelId?: string; studentId?: string },
+    log: Logger,
+  ) {
+    log.debug(
+      { filters },
+      "Fetching bulk quiz attempts results summary for lecturer view",
+    );
+
+    // 1. Build dynamic query clauses based on requested filters
+    const whereClause: Prisma.QuizAttemptWhereInput = {};
+    if (filters.quizLevelId) {
+      whereClause.quizLevelId = BigInt(filters.quizLevelId);
+    }
+    if (filters.studentId) {
+      whereClause.studentId = filters.studentId;
+    }
+
+    // 2. Fetch all matching submitted attempts
+    const attempts = await prisma.quizAttempt.findMany({
+      where: whereClause,
+      include: {
+        quizLevel: {
+          include: {
+            quiz: { select: { title: true } },
+            _count: { select: { questions: true } }, // Get total questions count
+          },
+        },
+        student: {
+          select: { name: true, email: true }, // Include student profiles
+        },
+      },
+      orderBy: { submittedAt: "desc" }, // Most recent submissions first
+    });
+
+    log.info(
+      { count: attempts.length },
+      "Bulk quiz attempts results gathered successfully",
+    );
+
+    // 3. Map out a shallow high-level overview suitable for table lists
+    return attempts.map((attempt) => ({
+      attemptId: attempt.id.toString(),
+      quizLevelId: attempt.quizLevelId.toString(),
+      quizTitle: attempt.quizLevel.quiz.title,
+      levelTitle: attempt.quizLevel.title,
+      studentId: attempt.studentId,
+      studentName: attempt.student.name,
+      studentEmail: attempt.student.email,
+      score: attempt.score,
+      totalQuestions: attempt.quizLevel._count.questions,
+      startedAt: attempt.startedAt.toISOString(),
+      submittedAt: attempt.submittedAt?.toISOString() ?? null, // Null if in-progress
+    }));
+  }
+
   static async getAttemptResults(
     attemptId: string,
     studentId: string,

@@ -445,7 +445,7 @@ describe("Quiz Attempt Test Suite", () => {
   // =========================================
   // GET /quizzes/attempts/:id/results
   // =========================================
-  describe.only("GET /quizzes/attempts/:id/results", () => {
+  describe("GET /quizzes/attempts/:id/results", () => {
     it("should return detailed evaluation mapping for a submitted attempt", async () => {
       const role = await createTestRoleWithPermissions("ResultReaderRole", [
         { featureName: "quiz_management", action: "read" },
@@ -560,6 +560,163 @@ describe("Quiz Attempt Test Suite", () => {
       );
 
       expect(res.status).toBe(400); // Throws QuizAttemptValidationError
+    });
+  });
+
+  // =======================================================================
+  // GET /quizzes/attempts/results (Bulk Summary / Lecturer View)
+  // =======================================================================
+  describe("GET /quizzes/attempts/results", () => {
+    it("should return high-level summary logs of all quiz attempts for lecturer tracking", async () => {
+      const role = await createTestRoleWithPermissions(
+        "LecturerResultsReaderRole",
+        [{ featureName: "quiz_management", action: "read" }],
+      );
+
+      const { user: lecturer, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+
+      const { quiz, level } = await createMockQuizWithLevel(lecturer.id);
+
+      // Seed 2 questions into the level so totalQuestions count aggregates properly
+      await prisma.quizQuestion.createMany({
+        data: [
+          {
+            quizLevelId: level.id,
+            questionText: "Q1",
+            answerText: "A1",
+            questionOrder: 1,
+          },
+          {
+            quizLevelId: level.id,
+            questionText: "Q2",
+            answerText: "A2",
+            questionOrder: 2,
+          },
+        ],
+      });
+
+      // Create a second student account context to mock multi-student class submissions
+      const studentRole = await createTestRoleWithPermissions(
+        "StudentDefaultRole",
+        [],
+      );
+      const { user: student2 } = await createAuthenticatedUser({
+        roleId: studentRole.id,
+        id: "new-student-id",
+        email: "newStudent@test.com",
+      });
+
+      // Seed submission record for Student 1
+      const attempt1 = await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: level.id,
+          studentId: lecturer.id, // Using the first authenticated user context as student 1
+          submittedAt: new Date(),
+          score: 100,
+        },
+      });
+
+      // Seed submission record for Student 2
+      const attempt2 = await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: level.id,
+          studentId: student2.id,
+          submittedAt: new Date(),
+          score: 50,
+        },
+      });
+
+      // Request without query parameters to view the unfiltered global list
+      const res = await app.handle(
+        new Request("http://localhost/quizzes/attempts/results", {
+          method: "GET",
+          headers: {
+            ...authHeaders,
+            "x-forwarded-for": randomIp(),
+          },
+        }),
+      );
+
+      const json = await res.json();
+      expect(res.status).toBe(200);
+
+      // Expect both submissions to be loaded into the collection
+      expect(json.data).toBeInstanceOf(Array);
+      expect(json.data.length).toBeGreaterThanOrEqual(2);
+
+      // Validate the structure matches the schema contracts exactly
+      const record1 = json.data.find(
+        (item: any) => item.attemptId === attempt1.id.toString(),
+      );
+      expect(record1).toBeDefined();
+      expect(record1.quizTitle).toBe(quiz.title);
+      expect(record1.levelTitle).toBe(level.title);
+      expect(record1.score).toBe(100);
+      expect(record1.totalQuestions).toBe(2);
+      expect(record1.studentName).toBeDefined();
+      expect(record1.studentEmail).toBeDefined();
+    });
+
+    it("should filter the bulk summary results accurately when query parameters are supplied", async () => {
+      const role = await createTestRoleWithPermissions(
+        "LecturerResultsReaderRole",
+        [{ featureName: "quiz_management", action: "read" }],
+      );
+
+      const { user: lecturer, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+
+      const { level: targetLevel } = await createMockQuizWithLevel(lecturer.id);
+      const { level: isolatedLevel } = await createMockQuizWithLevel(
+        lecturer.id,
+      );
+
+      // Seed submission on target level
+      const targetAttempt = await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: targetLevel.id,
+          studentId: lecturer.id,
+          submittedAt: new Date(),
+          score: 80,
+        },
+      });
+
+      // Seed alternative noise submission on the secondary level
+      await prisma.quizAttempt.create({
+        data: {
+          quizLevelId: isolatedLevel.id,
+          studentId: lecturer.id,
+          submittedAt: new Date(),
+          score: 90,
+        },
+      });
+
+      // Execute request filtering strictly by quizLevelId
+      const res = await app.handle(
+        new Request(
+          `http://localhost/quizzes/attempts/results?quizLevelId=${targetLevel.id}`,
+          {
+            method: "GET",
+            headers: {
+              ...authHeaders,
+              "x-forwarded-for": randomIp(),
+            },
+          },
+        ),
+      );
+
+      expect(res.status).toBe(200);
+      const json = await res.json();
+
+      // The noise row should be filtered out from the response collection array
+      const matches = json.data.filter(
+        (item: any) => item.quizLevelId === targetLevel.id.toString(),
+      );
+      expect(json.data).toHaveLength(matches.length);
+      expect(json.data[0].attemptId).toBe(targetAttempt.id.toString());
     });
   });
 });

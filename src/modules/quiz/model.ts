@@ -135,6 +135,27 @@ export const QuizProgressSafe = z.object({
   attemptHistory: z.array(QuizAttemptHistoryItemSchema),
 });
 
+// Filter schema incoming from URL Query string strings
+export const GetAllAttemptsResultsQuerySchema = z.object({
+  quizLevelId: z.string().optional(),
+  studentId: z.string().optional(),
+});
+
+// Row representation inside the returned overview table list array
+export const QuizAttemptSummarySafe = z.object({
+  attemptId: z.string(),
+  quizLevelId: z.string(),
+  quizTitle: z.string(),
+  levelTitle: z.string(),
+  studentId: z.string(),
+  studentName: z.string(),
+  studentEmail: z.string(),
+  score: z.number().nullable(),
+  totalQuestions: z.number(),
+  startedAt: z.string(),
+  submittedAt: z.string().nullable(),
+});
+
 // ==========================================
 // QUIZ ANSWER SCHEMAS
 // ==========================================
@@ -207,6 +228,7 @@ export const QuizModel = {
   submitAttemptResult: createResponseSchema(QuizAttemptSafe),
   quizProgress: createResponseSchema(QuizProgressSafe),
   quizAttemptResult: createResponseSchema(QuizResultSafe),
+  quizAllAttemptResult: createResponseSchema(z.array(QuizAttemptSummarySafe)),
 
   // Answer
   answer: createResponseSchema(QuizAnswerSafe),
@@ -257,6 +279,7 @@ export type QuizModelType = {
   submitAttemptResult: z.infer<typeof QuizModel.submitAttemptResult>;
   quizProgress: z.infer<typeof QuizModel.quizProgress>;
   quizAttemptResult: z.infer<typeof QuizModel.quizAttemptResult>;
+  quizAttemptAllResult: z.infer<typeof QuizModel.quizAllAttemptResult>;
 
   // Answer
   answer: z.infer<typeof QuizModel.answer>;

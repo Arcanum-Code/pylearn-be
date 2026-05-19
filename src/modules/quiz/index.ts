@@ -5,7 +5,7 @@ import {
   QuizAttemptService,
   QuizAnswerService,
 } from "./service";
-import { QuizModel } from "./model";
+import { GetAllAttemptsResultsQuerySchema, QuizModel } from "./model";
 import {
   CreateQuizSchema,
   UpdateQuizSchema,
@@ -409,6 +409,25 @@ const attemptRoutes = createProtectedApp()
       query: GetQuizLevelsQuerySchema,
       response: {
         200: QuizModel.quizProgress,
+        500: QuizModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE, "read"),
+    },
+  )
+  .get(
+    "/results",
+    async ({ query, set, log, locale }) => {
+      const results = await QuizAttemptService.getAllAttemptsResults(
+        query,
+        log,
+      );
+
+      return ok({ set, locale }, results, "quizAttempt.bulkResultsSuccess");
+    },
+    {
+      query: GetAllAttemptsResultsQuerySchema,
+      response: {
+        200: QuizModel.quizAllAttemptResult,
         500: QuizModel.error,
       },
       beforeHandle: hasPermission(FEATURE, "read"),

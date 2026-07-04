@@ -9,6 +9,7 @@ export const createQuizResponseSchema = z.object({
   pass_threshold: z.number(),
   status: z.string(),
   questions: z.array(z.any()),
+  warning: z.string().optional(),
 });
 
 export const LecturerQuizModel = {

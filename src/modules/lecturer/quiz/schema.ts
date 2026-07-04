@@ -23,3 +23,5 @@ export const replaceBlanksSchema = z.object({
     }),
   ),
 });
+
+export const updateQuestionSchema = createQuestionSchema.partial();

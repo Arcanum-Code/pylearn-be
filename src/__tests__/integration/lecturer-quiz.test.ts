@@ -261,4 +261,74 @@ describe("Lecturer Quiz API", () => {
     const res = await app.handle(req);
     expect(res.status).toBe(422); // Validation Error expected
   });
+
+  it("should update a question and return blanks_invalidated if key answer changes invalidly", async () => {
+    const role = await createTestRoleWithPermissions(
+      "LecturerRolePatchQuestion",
+      [{ featureName: "lecturer_quiz_access", action: "update" }],
+    );
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "patch_q@test.com",
+    });
+
+    // Setup group, quiz, question and blank
+    const group = await prisma.group.create({
+      data: { name: "Patch Q Group", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 13,
+        title: "Patch Q Quiz",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "What is an array?",
+        answerText: "An array is a data structure.",
+        questionOrder: 1,
+      },
+    });
+    await prisma.questionKeyword.create({
+      data: {
+        questionId: question.id,
+        blankOrder: 1,
+        correctAnswer: "data structure",
+        startIndex: 14,
+        endIndex: 28,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/questions/q_${question.id}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question_text: "What exactly is an array?",
+          key_answer_text: "An array represents a data structure.", // Shifted! "data structure" now starts at 22
+        }),
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.data.question_text).toBe("What exactly is an array?");
+    expect(body.data.key_answer_text).toBe(
+      "An array represents a data structure.",
+    );
+    expect(body.data.blanks_invalidated).toBe(true);
+    expect(body.data.message).toBe(
+      "Key answer changed; please re-select blanks.",
+    );
+  });
 });

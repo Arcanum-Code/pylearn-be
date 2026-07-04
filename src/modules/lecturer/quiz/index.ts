@@ -5,6 +5,7 @@ import {
   updateQuizSchema,
   createQuestionSchema,
   replaceBlanksSchema,
+  updateQuestionSchema,
 } from "./schema";
 import { LecturerQuizModel } from "./model";
 import { successResponse, errorResponse } from "@/libs/response";
@@ -104,6 +105,29 @@ export const lecturerQuiz = createProtectedApp({ tags: ["Lecturer Quiz"] })
     {
       body: replaceBlanksSchema,
       response: { 200: LecturerQuizModel.replaceBlanksResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "update"),
+    },
+  )
+  .patch(
+    "/questions/:questionId",
+    async ({ set, params, body, log, locale }) => {
+      const result = await LecturerQuizService.updateQuestion(
+        params.questionId,
+        body,
+        log,
+      );
+      return successResponse(
+        set,
+        result,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      body: updateQuestionSchema,
+      response: { 200: LecturerQuizModel.updateQuestionResponse },
       beforeHandle: hasPermission(FEATURE_NAME, "update"),
     },
   )

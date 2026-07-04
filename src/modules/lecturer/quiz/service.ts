@@ -234,4 +234,104 @@ export class LecturerQuizService {
       })),
     };
   }
+
+  static async updateQuestion(
+    questionIdStr: string,
+    data: {
+      question_text?: string;
+      key_answer_text?: string;
+      sequence_order?: number;
+    },
+    log: Logger,
+  ) {
+    const questionId = BigInt(questionIdStr.replace("q_", ""));
+
+    const question = await prisma.quizQuestion.findUnique({
+      where: { id: questionId },
+      include: { keywords: true },
+    });
+    if (!question) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (
+      data.sequence_order !== undefined &&
+      data.sequence_order !== question.questionOrder
+    ) {
+      const sequenceConflict = await prisma.quizQuestion.findUnique({
+        where: {
+          quizId_questionOrder: {
+            quizId: question.quizId,
+            questionOrder: data.sequence_order,
+          },
+        },
+      });
+      if (sequenceConflict) {
+        throw new LecturerQuizError(422, "quiz.questionOrderExists", {
+          sequence_order: data.sequence_order,
+        });
+      }
+    }
+
+    const updatedQuestion = await prisma.quizQuestion.update({
+      where: { id: questionId },
+      data: {
+        questionText:
+          data.question_text !== undefined ? data.question_text : undefined,
+        answerText:
+          data.key_answer_text !== undefined ? data.key_answer_text : undefined,
+        questionOrder:
+          data.sequence_order !== undefined ? data.sequence_order : undefined,
+      },
+    });
+
+    let blanksInvalidated = false;
+    let message: string | undefined = undefined;
+
+    if (
+      data.key_answer_text !== undefined &&
+      data.key_answer_text !== question.answerText &&
+      question.keywords.length > 0
+    ) {
+      for (const blank of question.keywords) {
+        if (
+          blank.startIndex >= blank.endIndex ||
+          blank.endIndex > data.key_answer_text.length
+        ) {
+          blanksInvalidated = true;
+          break;
+        }
+        const actualSubstring = data.key_answer_text.substring(
+          blank.startIndex,
+          blank.endIndex,
+        );
+        if (actualSubstring !== blank.correctAnswer) {
+          blanksInvalidated = true;
+          break;
+        }
+      }
+    }
+
+    if (blanksInvalidated) {
+      message = "Key answer changed; please re-select blanks.";
+    }
+
+    log.info({ questionId: updatedQuestion.id }, "Lecturer updated question");
+
+    return {
+      question_id: questionIdStr,
+      quiz_id: `qz_${updatedQuestion.quizId}`,
+      question_text: updatedQuestion.questionText,
+      key_answer_text: updatedQuestion.answerText,
+      sequence_order: updatedQuestion.questionOrder,
+      blanks: question.keywords.map((b) => ({
+        blank_id: `b_${b.id}`,
+        keyword: b.correctAnswer,
+        start_index: b.startIndex,
+        end_index: b.endIndex,
+      })),
+      blanks_invalidated: blanksInvalidated ? true : undefined,
+      message,
+    };
+  }
 }

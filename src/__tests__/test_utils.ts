@@ -7,7 +7,6 @@ export const TEST_USER_ID = "ckv9x3y9x0001qz1abcde1234";
 export async function resetDatabase() {
   await prisma.refreshToken.deleteMany();
   await prisma.questionKeyword.deleteMany();
-  await prisma.quizPrerequisite.deleteMany();
   await prisma.quiz.deleteMany();
   await prisma.materialRead.deleteMany();
   await prisma.material.deleteMany();

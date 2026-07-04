@@ -55,7 +55,6 @@ model Material {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   reads             MaterialRead[]
-  quizPrerequisites QuizPrerequisite[]
 }
 
 model Group {
@@ -99,7 +98,6 @@ model Quiz {
   updatedAt     DateTime           @updatedAt
   questions     QuizQuestion[]
   QuizAttempt   QuizAttempt[]
-  prerequisites QuizPrerequisite[]
 
   @@unique([groupId, levelNumber])
 }
@@ -137,15 +135,7 @@ model QuizAttempt {
   @@unique([quizId, studentId, attemptNumber])
 }
 
-model QuizPrerequisite {
-  id         String   @id @default(cuid())
-  quizId     BigInt
-  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  materialId BigInt
-  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
 
-  @@unique([quizId, materialId])
-}
 
 model QuestionKeyword {
   id            BigInt       @id @default(autoincrement())
@@ -153,6 +143,8 @@ model QuestionKeyword {
   question      QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   blankOrder    Int
   correctAnswer String       @db.Text
+  startIndex    Int
+  endIndex      Int
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   quizAnswerItems QuizAnswerItem[]

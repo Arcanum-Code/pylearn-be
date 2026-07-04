@@ -1,6 +1,21 @@
 import { z } from "zod";
 import { createResponseSchema } from "@/libs/response";
 
+export const blankSchema = z.object({
+  blank_id: z.string(),
+  keyword: z.string(),
+  start_index: z.number(),
+  end_index: z.number(),
+});
+
+export const questionSchema = z.object({
+  question_id: z.string(),
+  question_text: z.string(),
+  key_answer_text: z.string(),
+  sequence_order: z.number(),
+  blanks: z.array(blankSchema),
+});
+
 export const createQuizResponseSchema = z.object({
   quiz_id: z.string(),
   group_id: z.string(),
@@ -8,7 +23,7 @@ export const createQuizResponseSchema = z.object({
   title: z.string(),
   pass_threshold: z.number(),
   status: z.string(),
-  questions: z.array(z.any()),
+  questions: z.array(questionSchema),
   warning: z.string().optional(),
 });
 
@@ -21,20 +36,13 @@ export const LecturerQuizModel = {
       question_text: z.string(),
       key_answer_text: z.string(),
       sequence_order: z.number(),
-      blanks: z.array(z.any()),
+      blanks: z.array(blankSchema),
     }),
   ),
   replaceBlanksResponse: createResponseSchema(
     z.object({
       question_id: z.string(),
-      blanks: z.array(
-        z.object({
-          blank_id: z.string(),
-          keyword: z.string(),
-          start_index: z.number(),
-          end_index: z.number(),
-        }),
-      ),
+      blanks: z.array(blankSchema),
     }),
   ),
   updateQuestionResponse: createResponseSchema(
@@ -44,14 +52,7 @@ export const LecturerQuizModel = {
       question_text: z.string(),
       key_answer_text: z.string(),
       sequence_order: z.number(),
-      blanks: z.array(
-        z.object({
-          blank_id: z.string(),
-          keyword: z.string(),
-          start_index: z.number(),
-          end_index: z.number(),
-        }),
-      ),
+      blanks: z.array(blankSchema),
       blanks_invalidated: z.boolean().optional(),
       message: z.string().optional(),
     }),
@@ -84,22 +85,7 @@ export const LecturerQuizModel = {
       title: z.string(),
       status: z.string(),
       pass_threshold: z.number(),
-      questions: z.array(
-        z.object({
-          question_id: z.string(),
-          question_text: z.string(),
-          key_answer_text: z.string(),
-          sequence_order: z.number(),
-          blanks: z.array(
-            z.object({
-              blank_id: z.string(),
-              keyword: z.string(),
-              start_index: z.number(),
-              end_index: z.number(),
-            }),
-          ),
-        }),
-      ),
+      questions: z.array(questionSchema),
       gating_materials: z.array(
         z.object({
           material_id: z.string(),

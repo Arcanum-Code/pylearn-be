@@ -33,6 +33,9 @@ export const group = createProtectedApp()
         {
           response: {
             200: GroupModel.listResult,
+            400: GroupModel.error,
+            403: GroupModel.error,
+            500: GroupModel.error,
           },
           beforeHandle: hasPermission(FEATURE, "read"),
           detail: {
@@ -58,47 +61,15 @@ export const group = createProtectedApp()
           params: z.object({ id: z.string() }),
           response: {
             200: GroupModel.detailResult,
+            400: GroupModel.error,
+            403: GroupModel.error,
+            404: GroupModel.error,
+            500: GroupModel.error,
           },
           beforeHandle: hasPermission(FEATURE, "read"),
           detail: {
             tags: ["Group"],
             summary: "Retrieve group by ID",
-            responses: {
-              200: {
-                description: "Group details retrieved successfully",
-                content: {
-                  "application/json": {
-                    example: {
-                      error: false,
-                      data: {
-                        id: "cmr68f8u60097ijq739906nm1",
-                        name: "Week 1",
-                        description: "Introduction",
-                        createdAt: "2026-07-04T10:41:24.000Z",
-                        updatedAt: "2026-07-04T10:41:24.000Z",
-                        materials: [
-                          {
-                            id: "1",
-                            title: "Lecture Notes",
-                            isPublished: true,
-                          },
-                        ],
-                        quizzes: [
-                          {
-                            id: "2",
-                            title: "Week 1 Quiz",
-                            levelNumber: 1,
-                            isPublished: true,
-                          },
-                        ],
-                      },
-                      message: "Success",
-                      meta: null,
-                    },
-                  },
-                },
-              },
-            },
           },
         },
       )
@@ -119,6 +90,9 @@ export const group = createProtectedApp()
           body: CreateGroupSchema,
           response: {
             201: GroupModel.createResult,
+            400: GroupModel.error,
+            403: GroupModel.error,
+            500: GroupModel.error,
           },
           beforeHandle: hasPermission(FEATURE, "create"),
           detail: {
@@ -145,6 +119,10 @@ export const group = createProtectedApp()
           body: UpdateGroupSchema,
           response: {
             200: GroupModel.updateResult,
+            400: GroupModel.error,
+            403: GroupModel.error,
+            404: GroupModel.error,
+            500: GroupModel.error,
           },
           beforeHandle: hasPermission(FEATURE, "update"),
           detail: {
@@ -170,6 +148,10 @@ export const group = createProtectedApp()
           params: z.object({ id: z.string() }),
           response: {
             200: GroupModel.deleteResult,
+            400: GroupModel.error,
+            403: GroupModel.error,
+            404: GroupModel.error,
+            500: GroupModel.error,
           },
           beforeHandle: hasPermission(FEATURE, "delete"),
           detail: {

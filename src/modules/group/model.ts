@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createResponseSchema } from "@/libs/response";
+import { createErrorSchema, createResponseSchema } from "@/libs/response";
 
 export const GroupSafe = z.object({
   id: z.string(),
@@ -39,4 +39,5 @@ export const GroupModel = {
   detailResult: createResponseSchema(GroupDetailSafe),
   updateResult: createResponseSchema(GroupSafe),
   deleteResult: createResponseSchema(z.object({ success: z.boolean() })),
+  error: createErrorSchema(z.null()),
 };

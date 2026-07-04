@@ -8,6 +8,9 @@ import {
 export const MaterialSafe = z.object({
   id: z.string(),
   lecturerId: z.string(),
+  groupId: z.string(),
+  sequence: z.number().int(),
+  version: z.number().int(),
   title: z.string(),
   description: z.string().nullable(),
   materialType: z.string(),

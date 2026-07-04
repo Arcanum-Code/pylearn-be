@@ -5,6 +5,7 @@ export const MaterialTypeEnum = z.enum(["text", "file", "video", "link"]);
 
 export const CreateMaterialSchema = z.object({
   lecturerId: z.string(),
+  groupId: z.string().min(1),
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   materialType: z.enum(["text", "file", "video", "link"], {
@@ -21,6 +22,12 @@ export const CreateMaterialSchema = z.object({
       if (val === "false") return false;
       return val;
     }, z.boolean())
+    .optional(),
+  sequence: z
+    .preprocess(
+      (val) => (val === undefined || val === null ? undefined : Number(val)),
+      z.number().int().optional(),
+    )
     .optional(),
   file: z
     .instanceof(File)
@@ -54,6 +61,19 @@ export const UpdateMaterialSchema = z
     sourceUrl: z.string().url().optional(),
     iconName: z.string().max(50).optional(),
     isPublished: z
+      .preprocess((val) => {
+        if (val === "true" || val === true) return true;
+        if (val === "false" || val === false) return false;
+        return val;
+      }, z.boolean())
+      .optional(),
+    sequence: z
+      .preprocess(
+        (val) => (val === undefined || val === null ? undefined : Number(val)),
+        z.number().int().optional(),
+      )
+      .optional(),
+    forceReread: z
       .preprocess((val) => {
         if (val === "true" || val === true) return true;
         if (val === "false" || val === false) return false;

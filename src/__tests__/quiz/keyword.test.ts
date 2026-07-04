@@ -26,6 +26,8 @@ describe.skip("Question Keywords API", () => {
     const auth = await createAuthenticatedUser({ roleId: role.id });
     authHeaders = auth.authHeaders;
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     // Setup hierarchy to get a valid quizId
     const mResponse = await app.handle(
       new Request("http://localhost/materials", {
@@ -33,6 +35,7 @@ describe.skip("Question Keywords API", () => {
         headers: authHeaders,
         body: JSON.stringify({
           lecturerId: auth.user.id,
+          groupId: group.id,
           title: "Test Material",
           materialType: "text",
         }),

@@ -548,11 +548,15 @@ describe("Quiz Answers Management Integration Tests", () => {
       const { level } = await createMockQuestion(user.id);
 
       // Create an outside question linked to an entirely different quiz group context
+      const altGroup = await prisma.group.create({
+        data: { name: "Alt Group" },
+      });
       const alternativeMaterial = await prisma.material.create({
         data: {
           title: "Alternative Material",
           materialType: "text",
           lecturerId: user.id,
+          groupId: altGroup.id,
         },
       });
       const alternativeQuiz = await prisma.quiz.create({

@@ -8,6 +8,9 @@ import { mkdir } from "fs/promises";
 export const SAFE_MATERIAL_SELECT = {
   id: true,
   lecturerId: true,
+  groupId: true,
+  sequence: true,
+  version: true,
   title: true,
   description: true,
   materialType: true,
@@ -122,9 +125,21 @@ export abstract class MaterialService {
       "Creating new material",
     );
 
+    let sequence = data.sequence;
+    if (sequence === undefined || sequence === null) {
+      const lastMat = await prisma.material.findFirst({
+        where: { groupId: data.groupId },
+        orderBy: { sequence: "desc" },
+        select: { sequence: true },
+      });
+      sequence = lastMat ? lastMat.sequence + 1000 : 1000;
+    }
+
     const material = await prisma.material.create({
       data: {
         ...data,
+        sequence,
+        version: 1,
         publishedAt: data.isPublished ? new Date() : null,
       },
       select: SAFE_MATERIAL_SELECT,
@@ -165,12 +180,28 @@ export abstract class MaterialService {
       filePath = `/storage/materials/${fileName}`;
     }
 
+    let sequence = data.sequence;
+    if (sequence === undefined || sequence === null) {
+      const lastMat = await prisma.material.findFirst({
+        where: { groupId: data.groupId },
+        orderBy: { sequence: "desc" },
+        select: { sequence: true },
+      });
+      sequence = lastMat ? lastMat.sequence + 1000 : 1000;
+    }
+
     const material = await prisma.material.create({
       data: {
         title: data.title,
+        description: data.description ?? null,
         materialType: data.materialType,
         lecturerId: lecturerId,
+        groupId: data.groupId,
+        sequence,
+        version: 1,
         content: filePath ?? data.content ?? null,
+        sourceUrl: data.sourceUrl ?? null,
+        iconName: data.iconName ?? null,
         publishedAt:
           data.isPublished === "true" || data.isPublished === true
             ? new Date()
@@ -249,6 +280,8 @@ export abstract class MaterialService {
     // 3. Build atomic update mapping
     const updateData: Prisma.MaterialUpdateInput = {
       title: data.title !== undefined ? data.title : undefined,
+      description:
+        data.description !== undefined ? data.description : undefined,
       materialType:
         data.materialType !== undefined ? data.materialType : undefined,
       content:
@@ -257,15 +290,24 @@ export abstract class MaterialService {
           : data.content !== undefined
             ? data.content
             : undefined,
+      sourceUrl: data.sourceUrl !== undefined ? data.sourceUrl : undefined,
+      iconName: data.iconName !== undefined ? data.iconName : undefined,
+      sequence: data.sequence !== undefined ? data.sequence : undefined,
     };
 
     // 4. Handle publishing timestamp checks mirroring createMaterialMe string constraints
     if (data.isPublished !== undefined) {
       if (data.isPublished === "true" || data.isPublished === true) {
         updateData.publishedAt = new Date();
+        updateData.isPublished = true;
       } else {
         updateData.publishedAt = null;
+        updateData.isPublished = false;
       }
+    }
+
+    if (data.forceReread === true || data.forceReread === "true") {
+      updateData.version = { increment: 1 };
     }
 
     const material = await prisma.material.update({

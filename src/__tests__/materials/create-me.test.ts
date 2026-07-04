@@ -25,12 +25,15 @@ describe("POST /materials/me", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const materialData = {
       title: "Material Me",
       description: "Testing POST /materials/me",
       materialType: "text",
       content: "Some content",
       isPublished: false,
+      groupId: group.id,
     };
 
     const response = await app.handle(
@@ -59,10 +62,13 @@ describe("POST /materials/me", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const formData = new FormData();
     formData.append("title", "Lecture Notes PDF");
     formData.append("materialType", "file");
     formData.append("isPublished", "true");
+    formData.append("groupId", group.id);
 
     const mockPdfFile = new File(
       [new Uint8Array([1, 2, 3, 4])],
@@ -121,6 +127,8 @@ describe("POST /materials/me", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials/me", {
         method: "POST",
@@ -132,6 +140,7 @@ describe("POST /materials/me", () => {
         body: JSON.stringify({
           title: "Forbidden Material",
           materialType: "text",
+          groupId: group.id,
         }),
       }),
     );

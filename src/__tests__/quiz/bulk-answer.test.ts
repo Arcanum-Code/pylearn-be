@@ -82,7 +82,7 @@ describe("POST /quizzes/answers/bulk", () => {
     // Create an open target attempt
     const attempt = await prisma.quizAttempt.create({
       data: {
-        quizId: quiz.id,
+        quizLevelId: level.id,
         studentId: student.id,
         submittedAt: null,
       },
@@ -153,7 +153,7 @@ describe("POST /quizzes/answers/bulk", () => {
     // Create a closed attempt
     const attempt = await prisma.quizAttempt.create({
       data: {
-        quizId: quiz.id,
+        quizLevelId: level.id,
         studentId: student.id,
         submittedAt: new Date(), // Already submitted status
       },
@@ -213,7 +213,7 @@ describe("POST /quizzes/answers/bulk", () => {
     });
 
     const attempt = await prisma.quizAttempt.create({
-      data: { quizId: quiz.id, studentId: student.id, submittedAt: null },
+      data: { quizLevelId: level.id, studentId: student.id, submittedAt: null },
     });
 
     const payload = {

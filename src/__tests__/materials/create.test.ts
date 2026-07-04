@@ -27,6 +27,8 @@ describe("POST /materials", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -34,7 +36,10 @@ describe("POST /materials", () => {
           ...authHeaders,
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify(defaultMaterialData(user.id)),
+        body: JSON.stringify({
+          ...defaultMaterialData(user.id),
+          groupId: group.id,
+        }),
       }),
     );
 
@@ -54,6 +59,8 @@ describe("POST /materials", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -63,6 +70,7 @@ describe("POST /materials", () => {
         },
         body: JSON.stringify({
           ...defaultMaterialData(user.id),
+          groupId: group.id,
           title: "Video Material",
           description: "A video tutorial",
           materialType: "video",
@@ -85,6 +93,8 @@ describe("POST /materials", () => {
   it("should return 400 for invalid materialType", async () => {
     const { user, authHeaders } = await createAuthenticatedUser();
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -94,6 +104,7 @@ describe("POST /materials", () => {
         },
         body: JSON.stringify({
           ...defaultMaterialData(user.id),
+          groupId: group.id,
           title: "Invalid Type",
           materialType: "invalid",
         }),
@@ -123,6 +134,7 @@ describe("POST /materials", () => {
   });
 
   it("should return 401 without authentication", async () => {
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -132,6 +144,7 @@ describe("POST /materials", () => {
         },
         body: JSON.stringify({
           lecturerId: "test-user-id",
+          groupId: group.id,
           title: "Test Material",
           materialType: "text",
         }),
@@ -147,6 +160,8 @@ describe("POST /materials", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -154,7 +169,10 @@ describe("POST /materials", () => {
           ...authHeaders,
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify(defaultMaterialData(user.id)),
+        body: JSON.stringify({
+          ...defaultMaterialData(user.id),
+          groupId: group.id,
+        }),
       }),
     );
     expect(response.status).toBe(403);
@@ -168,6 +186,8 @@ describe("POST /materials", () => {
       roleId: role.id,
     });
 
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
     const response = await app.handle(
       new Request("http://localhost/materials", {
         method: "POST",
@@ -175,7 +195,10 @@ describe("POST /materials", () => {
           ...authHeaders,
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify(defaultMaterialData(user.id)),
+        body: JSON.stringify({
+          ...defaultMaterialData(user.id),
+          groupId: group.id,
+        }),
       }),
     );
     expect(response.status).toBe(201);

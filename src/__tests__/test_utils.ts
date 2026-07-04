@@ -8,8 +8,10 @@ export async function resetDatabase() {
   await prisma.refreshToken.deleteMany();
   await prisma.quizLevel.deleteMany();
   await prisma.quiz.deleteMany();
+  await prisma.materialRead.deleteMany();
   await prisma.material.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.group.deleteMany();
   await prisma.roleFeature.deleteMany();
   await prisma.role.deleteMany();
   await prisma.feature.deleteMany();
@@ -236,6 +238,13 @@ export async function createTestMaterial(
   lecturerId: string,
   overrides: any = {},
 ) {
-  const data = { ...defaultMaterialData(lecturerId), ...overrides };
+  let groupId = overrides.groupId;
+  if (!groupId) {
+    const group = await prisma.group.create({
+      data: { name: "Default Group", description: "Default group for tests" },
+    });
+    groupId = group.id;
+  }
+  const data = { ...defaultMaterialData(lecturerId), groupId, ...overrides };
   return await prisma.material.create({ data });
 }

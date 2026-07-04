@@ -10,19 +10,13 @@ export const GroupSafe = z.object({
 });
 
 export const GroupMaterialSafe = z.object({
-  id: z
-    .string()
-    .or(z.bigint())
-    .transform((v) => v.toString()),
+  id: z.string(),
   title: z.string(),
   isPublished: z.boolean(),
 });
 
 export const GroupQuizSafe = z.object({
-  id: z
-    .string()
-    .or(z.bigint())
-    .transform((v) => v.toString()),
+  id: z.string(),
   title: z.string(),
   levelNumber: z.number().int(),
   isPublished: z.boolean(),

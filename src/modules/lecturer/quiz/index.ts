@@ -203,6 +203,24 @@ export const lecturerQuiz = createProtectedApp({ tags: ["Lecturer Quiz"] })
       beforeHandle: hasPermission(FEATURE_NAME, "read"),
     },
   )
+  .delete(
+    "/quizzes/:quizId",
+    async ({ set, params, log, locale }) => {
+      await LecturerQuizService.deleteQuiz(params.quizId, log);
+      return successResponse(
+        set,
+        null,
+        { key: "common.success" },
+        204,
+        undefined,
+        locale,
+      );
+    },
+    {
+      response: { 204: LecturerQuizModel.deleteQuizResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "delete"),
+    },
+  )
   .onError(({ error, set, locale }) => {
     if (error instanceof LecturerQuizError) {
       return errorResponse(

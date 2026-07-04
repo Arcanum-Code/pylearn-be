@@ -10,6 +10,8 @@ export const common = {
   duplicateField: "Duplicate value for unique field: {{target}}",
   invalidReference: "Invalid Reference: The '{{fieldName}}' does not exist.",
   duplicate: "Duplicate value for unique field: {{field}}",
+  quizDeleteConflict:
+    "Cannot delete a published quiz that has student attempts.",
 } as const;
 
 export const validation = {

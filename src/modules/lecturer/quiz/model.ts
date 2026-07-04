@@ -109,4 +109,5 @@ export const LecturerQuizModel = {
       ),
     }),
   ),
+  deleteQuizResponse: createResponseSchema(z.null()),
 } as const;

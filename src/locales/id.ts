@@ -10,6 +10,8 @@ export const id = {
   duplicateField: "Nilai duplikat untuk bidang unik: {{target}}",
   invalidReference: "Referensi tidak valid: '{{fieldName}}' tidak ada.",
   duplicate: "Nilai duplikat untuk bidang unik: {{field}}",
+  quizDeleteConflict:
+    "Tidak dapat menghapus kuis yang sudah dipublikasikan dan memiliki percobaan siswa.",
 } as const;
 
 export const validation = {

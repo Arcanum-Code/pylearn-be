@@ -10,6 +10,8 @@ export const es = {
   duplicateField: "Valor duplicado para campo único: {{target}}",
   invalidReference: "Referencia inválida: '{{fieldName}}' no existe.",
   duplicate: "Valor duplicado para campo único: {{field}}",
+  quizDeleteConflict:
+    "No se puede eliminar un cuestionario publicado que tiene intentos de estudiantes.",
 } as const;
 
 export const validation = {

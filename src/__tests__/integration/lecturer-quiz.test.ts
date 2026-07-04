@@ -684,4 +684,98 @@ describe("Lecturer Quiz API", () => {
     expect(body.data.gating_materials.length).toBe(1);
     expect(body.data.gating_materials[0].title).toBe("Gate Mat");
   });
+
+  it("should reject deleting a published quiz that has attempts", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleDelQFail", [
+      { featureName: "lecturer_quiz_access", action: "delete" },
+    ]);
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "del_q_fail@test.com",
+    });
+
+    const group = await prisma.group.create({
+      data: { name: "Del Q Group 1", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 24,
+        title: "Del Q Fail",
+        passThreshold: 60,
+        isPublished: true,
+      },
+    });
+
+    // Simulate student attempt
+    const studentUser = await createAuthenticatedUser({
+      id: "student-user-id",
+      roleId: role.id,
+      email: "student1@test.com",
+    });
+    await prisma.quizAttempt.create({
+      data: {
+        quizId: quiz.id,
+        studentId: studentUser.user.id,
+        attemptNumber: 1,
+        score: 100,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/quizzes/qz_${quiz.id}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.message).toBe(
+      "Cannot delete a published quiz that has student attempts.",
+    );
+  });
+
+  it("should successfully delete a draft quiz", async () => {
+    const role = await createTestRoleWithPermissions(
+      "LecturerRoleDelQSuccess",
+      [{ featureName: "lecturer_quiz_access", action: "delete" }],
+    );
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "del_q_ok@test.com",
+    });
+
+    const group = await prisma.group.create({
+      data: { name: "Del Q Group 2", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 25,
+        title: "Del Q Success",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/quizzes/qz_${quiz.id}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(204);
+
+    // Verify deletion
+    const deletedQuiz = await prisma.quiz.findUnique({
+      where: { id: quiz.id },
+    });
+    expect(deletedQuiz).toBeNull();
+  });
 });

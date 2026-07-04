@@ -485,4 +485,27 @@ export class LecturerQuizService {
       })),
     };
   }
+
+  static async deleteQuiz(quizIdStr: string, log: Logger) {
+    const quizId = BigInt(quizIdStr.replace("qz_", ""));
+
+    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+
+    if (!quiz) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (quiz.isPublished) {
+      const attemptCount = await prisma.quizAttempt.count({
+        where: { quizId },
+      });
+      if (attemptCount > 0) {
+        throw new LecturerQuizError(409, "common.quizDeleteConflict");
+      }
+    }
+
+    await prisma.quiz.delete({ where: { id: quizId } });
+
+    log.info({ quizId: quiz.id }, "Lecturer deleted quiz");
+  }
 }

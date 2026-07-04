@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/titanaprilian/pylearn-be:main
+    image: ghcr.io/arcanum-code/pylearn-be:main
     container_name: pylearn-backend
     env_file:
       - .env.docker
@@ -32,7 +32,7 @@ services:
       - pylearn-network
 
   frontend:
-    image: ghcr.io/titanaprilian/pylearn-fe:main
+    image: ghcr.io/arcanum-code/pylearn-fe:main
     container_name: pylearn-frontend
     depends_on:
       - app

@@ -13,7 +13,8 @@ const FEATURES = [
 
 const ROLES = [
   { name: "SuperAdmin", description: "Full System Access" },
-  { name: "Staff", description: "Standard Employee" },
+  { name: "Dosen", description: "Lecturer" },
+  { name: "Mahasiswa", description: "Student" },
 ] as const;
 
 // Helper Type for IntelliSense
@@ -32,17 +33,22 @@ const ROLE_PERMISSIONS: Record<
   >
 > = {
   SuperAdmin: {
-    // SuperAdmin gets everything (we will handle this logically in the loop, or explicit here)
     user_management: { c: true, r: true, u: true, d: true, p: true },
     RBAC_management: { c: true, r: true, u: true, d: true, p: true },
     material_management: { c: true, r: true, u: true, d: true, p: true },
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
   },
-  Staff: {
+  Dosen: {
+    user_management: { c: true, r: true, u: true, d: true, p: true },
+    RBAC_management: { c: false, r: false, u: false, d: false, p: false },
+    material_management: { c: true, r: true, u: true, d: true, p: true },
+    quiz_management: { c: true, r: true, u: true, d: true, p: true },
+  },
+  Mahasiswa: {
     user_management: { c: false, r: false, u: false, d: false, p: false },
     RBAC_management: { c: false, r: false, u: false, d: false, p: false },
     material_management: { c: false, r: true, u: false, d: false, p: false },
-    quiz_management: { c: false, r: true, u: false, d: false, p: false },
+    quiz_management: { c: true, r: true, u: true, d: true, p: true },
   },
 };
 
@@ -121,9 +127,10 @@ async function main() {
   // 1. SAFEGUARD: Get IDs first and throw error if missing
   console.log(roleMap);
   const adminRoleId = roleMap.get("SuperAdmin");
-  const staffRoleId = roleMap.get("Staff");
+  const dosenRoleId = roleMap.get("Dosen");
+  const mahasiswaRoleId = roleMap.get("Mahasiswa");
 
-  if (!adminRoleId || !staffRoleId) {
+  if (!adminRoleId || !dosenRoleId || !mahasiswaRoleId) {
     throw new Error(
       "❌ CRITICAL ERROR: Role IDs missing. Did the Roles seeding step finish?",
     );
@@ -138,34 +145,46 @@ async function main() {
       userId: "superAdmin",
       name: "Super Administrator",
       password,
-      roleId: roleMap.get("SuperAdmin")!,
+      roleId: adminRoleId,
       isActive: true,
     },
   });
 
-  // Staff
-  for (let i = 1; i <= 10; i++) {
-    const email = `staff${i}@system.com`;
-    const name = `John Staff ${i}`;
+  // Dosen (1 user)
+  await prisma.user.upsert({
+    where: { email: "dosen1@system.com" },
+    update: {
+      roleId: dosenRoleId,
+      name: "Dosen One",
+    },
+    create: {
+      email: "dosen1@system.com",
+      name: "Dosen One",
+      password,
+      userId: `${dosenRoleId}1`,
+      roleId: dosenRoleId,
+      isActive: true,
+    },
+  });
+  console.log("Seeded user: dosen1@system.com");
 
-    await prisma.user.upsert({
-      where: { email },
-      update: {
-        roleId: staffRoleId,
-        name,
-      },
-      create: {
-        email,
-        name,
-        password,
-        userId: `${staffRoleId}${i}`,
-        roleId: staffRoleId,
-        isActive: true,
-      },
-    });
-
-    console.log(`Seeded user: ${email}`);
-  }
+  // Mahasiswa (1 user)
+  await prisma.user.upsert({
+    where: { email: "mahasiswa1@system.com" },
+    update: {
+      roleId: mahasiswaRoleId,
+      name: "Mahasiswa One",
+    },
+    create: {
+      email: "mahasiswa1@system.com",
+      name: "Mahasiswa One",
+      password,
+      userId: `${mahasiswaRoleId}1`,
+      roleId: mahasiswaRoleId,
+      isActive: true,
+    },
+  });
+  console.log("Seeded user: mahasiswa1@system.com");
 
   console.log("✅ Seeding completed successfully!");
   console.log("   - admin@system.com / Password123");

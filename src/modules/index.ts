@@ -6,3 +6,4 @@ export { dashboard } from "./dashboard";
 export { materials } from "./materials";
 export { quizzes } from "./quiz";
 export { group } from "./group";
+export { student } from "./student";

@@ -70,13 +70,14 @@ model Group {
 }
 
 model MaterialRead {
-  id           String    @id @default(cuid())
-  materialId   BigInt
-  material     Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  materialId      BigInt
+  material        Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
   studentId       String
   student         User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   materialVersion Int
-  readAt          DateTime  @default(now())
+  readAt          DateTime? 
+  scrollPercentage Int?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

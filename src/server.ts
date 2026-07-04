@@ -11,6 +11,7 @@ import {
   materials,
   quizzes,
   group,
+  student,
 } from "./modules";
 import { prisma } from "./libs/prisma";
 import { logger } from "./libs/logger";
@@ -80,6 +81,7 @@ export const app = new Elysia()
   .use(materials)
   .use(quizzes)
   .use(group)
+  .use(student)
   .use(globalErrorHandler)
   .listen({
     port,

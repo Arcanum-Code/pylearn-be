@@ -84,6 +84,11 @@ A production-ready authentication service with Role-Based Access Control (RBAC).
         description:
           "Quiz management - Manage quizzes, questions, and keywords. Requires quiz_management permission.",
       },
+      {
+        name: "Group",
+        description:
+          "Group management - Organize materials and quizzes into sequential learning groups. Requires group_management permission.",
+      },
     ],
 
     components: {

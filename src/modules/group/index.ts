@@ -63,6 +63,42 @@ export const group = createProtectedApp()
           detail: {
             tags: ["Group"],
             summary: "Retrieve group by ID",
+            responses: {
+              200: {
+                description: "Group details retrieved successfully",
+                content: {
+                  "application/json": {
+                    example: {
+                      error: false,
+                      data: {
+                        id: "cmr68f8u60097ijq739906nm1",
+                        name: "Week 1",
+                        description: "Introduction",
+                        createdAt: "2026-07-04T10:41:24.000Z",
+                        updatedAt: "2026-07-04T10:41:24.000Z",
+                        materials: [
+                          {
+                            id: "1",
+                            title: "Lecture Notes",
+                            isPublished: true,
+                          },
+                        ],
+                        quizzes: [
+                          {
+                            id: "2",
+                            title: "Week 1 Quiz",
+                            levelNumber: 1,
+                            isPublished: true,
+                          },
+                        ],
+                      },
+                      message: "Success",
+                      meta: null,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       )

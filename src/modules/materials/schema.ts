@@ -30,13 +30,16 @@ export const CreateMaterialSchema = z.object({
     )
     .optional(),
   file: z
-    .instanceof(File)
+    .any()
+    .refine((file) => !file || file instanceof File, "Must be a File object")
     .refine(
-      (file) => file.type === "application/pdf",
+      (file) =>
+        !file || (file instanceof File && file.type === "application/pdf"),
       "Only PDF files are allowed",
     )
     .refine(
-      (file) => file.size <= 10 * 1024 * 1024,
+      (file) =>
+        !file || (file instanceof File && file.size <= 10 * 1024 * 1024),
       "File size must be less than 10MB",
     )
     .optional(),
@@ -81,13 +84,16 @@ export const UpdateMaterialSchema = z
       }, z.boolean())
       .optional(),
     file: z
-      .instanceof(File)
+      .any()
+      .refine((file) => !file || file instanceof File, "Must be a File object")
       .refine(
-        (file) => file.type === "application/pdf",
+        (file) =>
+          !file || (file instanceof File && file.type === "application/pdf"),
         "Only PDF files are allowed",
       )
       .refine(
-        (file) => file.size <= 10 * 1024 * 1024,
+        (file) =>
+          !file || (file instanceof File && file.size <= 10 * 1024 * 1024),
         "File size must be less than 10MB",
       )
       .optional(),

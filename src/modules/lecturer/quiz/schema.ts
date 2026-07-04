@@ -7,3 +7,9 @@ export const createQuizSchema = z.object({
 });
 
 export const updateQuizSchema = createQuizSchema.partial();
+
+export const createQuestionSchema = z.object({
+  question_text: z.string().min(1),
+  key_answer_text: z.string().min(1),
+  sequence_order: z.number().int().min(1),
+});

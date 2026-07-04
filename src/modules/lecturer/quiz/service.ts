@@ -102,4 +102,58 @@ export class LecturerQuizService {
       warning,
     };
   }
+
+  static async createQuestion(
+    quizIdStr: string,
+    data: {
+      question_text: string;
+      key_answer_text: string;
+      sequence_order: number;
+    },
+    log: Logger,
+  ) {
+    const quizId = BigInt(quizIdStr.replace("qz_", ""));
+
+    // Check if quiz exists
+    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+    if (!quiz) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    // Check for sequence_order conflict
+    const sequenceConflict = await prisma.quizQuestion.findUnique({
+      where: {
+        quizId_questionOrder: { quizId, questionOrder: data.sequence_order },
+      },
+    });
+
+    if (sequenceConflict) {
+      throw new LecturerQuizError(422, "quiz.questionOrderExists", {
+        sequence_order: data.sequence_order,
+      });
+    }
+
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId,
+        questionText: data.question_text,
+        answerText: data.key_answer_text,
+        questionOrder: data.sequence_order,
+      },
+    });
+
+    log.info(
+      { questionId: question.id, quizId },
+      "Lecturer added question to quiz",
+    );
+
+    return {
+      question_id: `q_${question.id}`,
+      quiz_id: quizIdStr,
+      question_text: question.questionText,
+      key_answer_text: question.answerText,
+      sequence_order: question.questionOrder,
+      blanks: [],
+    };
+  }
 }

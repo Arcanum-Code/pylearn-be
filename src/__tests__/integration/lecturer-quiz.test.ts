@@ -102,4 +102,54 @@ describe("Lecturer Quiz API", () => {
     expect(body.data.warning).toBeDefined();
     expect(body.data.warning).toContain("existing attempts");
   });
+
+  it("should add a new question to a quiz", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleQuestion", [
+      { featureName: "lecturer_quiz_access", action: "update" },
+    ]);
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "question@test.com",
+    });
+
+    // Setup group and quiz
+    const group = await prisma.group.create({
+      data: { name: "Question Group", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 10,
+        title: "Question Quiz",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/quizzes/qz_${quiz.id}/questions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question_text: "Explain how a for-loop iterates.",
+          key_answer_text: "A for-loop uses range directly.",
+          sequence_order: 1,
+        }),
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(201);
+    const body = await res.json();
+
+    expect(body.data.question_text).toBe("Explain how a for-loop iterates.");
+    expect(body.data.key_answer_text).toBe("A for-loop uses range directly.");
+    expect(body.data.sequence_order).toBe(1);
+    expect(body.data.blanks).toEqual([]);
+    expect(body.data.question_id).toBeDefined();
+  });
 });

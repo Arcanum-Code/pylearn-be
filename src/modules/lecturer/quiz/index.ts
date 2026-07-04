@@ -1,6 +1,10 @@
 import { createProtectedApp } from "@/libs/base";
 import { LecturerQuizService } from "./service";
-import { createQuizSchema, updateQuizSchema } from "./schema";
+import {
+  createQuizSchema,
+  updateQuizSchema,
+  createQuestionSchema,
+} from "./schema";
 import { LecturerQuizModel } from "./model";
 import { successResponse, errorResponse } from "@/libs/response";
 import { hasPermission } from "@/middleware/permission";
@@ -53,6 +57,29 @@ export const lecturerQuiz = createProtectedApp({ tags: ["Lecturer Quiz"] })
     {
       body: updateQuizSchema,
       response: { 200: LecturerQuizModel.createResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "update"),
+    },
+  )
+  .post(
+    "/quizzes/:quizId/questions",
+    async ({ set, params, body, log, locale }) => {
+      const result = await LecturerQuizService.createQuestion(
+        params.quizId,
+        body,
+        log,
+      );
+      return successResponse(
+        set,
+        result,
+        { key: "common.success" },
+        201,
+        undefined,
+        locale,
+      );
+    },
+    {
+      body: createQuestionSchema,
+      response: { 201: LecturerQuizModel.createQuestionResponse },
       beforeHandle: hasPermission(FEATURE_NAME, "update"),
     },
   )

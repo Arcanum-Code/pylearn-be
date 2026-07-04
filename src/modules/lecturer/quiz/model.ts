@@ -14,4 +14,14 @@ export const createQuizResponseSchema = z.object({
 
 export const LecturerQuizModel = {
   createResponse: createResponseSchema(createQuizResponseSchema),
+  createQuestionResponse: createResponseSchema(
+    z.object({
+      question_id: z.string(),
+      quiz_id: z.string(),
+      question_text: z.string(),
+      key_answer_text: z.string(),
+      sequence_order: z.number(),
+      blanks: z.array(z.any()),
+    }),
+  ),
 } as const;

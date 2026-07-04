@@ -334,4 +334,22 @@ export class LecturerQuizService {
       message,
     };
   }
+
+  static async deleteQuestion(questionIdStr: string, log: Logger) {
+    const questionId = BigInt(questionIdStr.replace("q_", ""));
+
+    const question = await prisma.quizQuestion.findUnique({
+      where: { id: questionId },
+    });
+    if (!question) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    await prisma.quizQuestion.delete({ where: { id: questionId } });
+
+    log.info(
+      { questionId: question.id },
+      "Lecturer deleted question (and cascaded blanks)",
+    );
+  }
 }

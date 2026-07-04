@@ -331,4 +331,69 @@ describe("Lecturer Quiz API", () => {
       "Key answer changed; please re-select blanks.",
     );
   });
+
+  it("should delete a question and cascade delete its blanks", async () => {
+    const role = await createTestRoleWithPermissions(
+      "LecturerRoleDeleteQuestion",
+      [{ featureName: "lecturer_quiz_access", action: "delete" }],
+    );
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "del_q@test.com",
+    });
+
+    // Setup group, quiz, question and blank
+    const group = await prisma.group.create({
+      data: { name: "Delete Q Group", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 14,
+        title: "Delete Q Quiz",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "To be deleted?",
+        answerText: "Yes.",
+        questionOrder: 1,
+      },
+    });
+    const blank = await prisma.questionKeyword.create({
+      data: {
+        questionId: question.id,
+        blankOrder: 1,
+        correctAnswer: "Yes",
+        startIndex: 0,
+        endIndex: 3,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/questions/q_${question.id}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(204);
+
+    // Verify question is deleted
+    const deletedQuestion = await prisma.quizQuestion.findUnique({
+      where: { id: question.id },
+    });
+    expect(deletedQuestion).toBeNull();
+
+    // Verify blanks are cascade-deleted
+    const deletedBlank = await prisma.questionKeyword.findUnique({
+      where: { id: blank.id },
+    });
+    expect(deletedBlank).toBeNull();
+  });
 });

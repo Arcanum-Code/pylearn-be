@@ -56,4 +56,5 @@ export const LecturerQuizModel = {
       message: z.string().optional(),
     }),
   ),
+  deleteQuestionResponse: createResponseSchema(z.null()),
 } as const;

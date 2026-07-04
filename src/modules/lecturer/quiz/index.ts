@@ -149,6 +149,24 @@ export const lecturerQuiz = createProtectedApp({ tags: ["Lecturer Quiz"] })
       beforeHandle: hasPermission(FEATURE_NAME, "delete"),
     },
   )
+  .post(
+    "/quizzes/:quizId/publish",
+    async ({ set, params, log, locale }) => {
+      const result = await LecturerQuizService.publishQuiz(params.quizId, log);
+      return successResponse(
+        set,
+        result,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      response: { 200: LecturerQuizModel.publishQuizResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "update"),
+    },
+  )
   .onError(({ error, set, locale }) => {
     if (error instanceof LecturerQuizError) {
       return errorResponse(

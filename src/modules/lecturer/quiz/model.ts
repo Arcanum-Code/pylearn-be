@@ -57,4 +57,10 @@ export const LecturerQuizModel = {
     }),
   ),
   deleteQuestionResponse: createResponseSchema(z.null()),
+  publishQuizResponse: createResponseSchema(
+    z.object({
+      quiz_id: z.string(),
+      status: z.string(),
+    }),
+  ),
 } as const;

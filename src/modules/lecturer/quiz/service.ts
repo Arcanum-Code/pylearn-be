@@ -352,4 +352,66 @@ export class LecturerQuizService {
       "Lecturer deleted question (and cascaded blanks)",
     );
   }
+
+  static async publishQuiz(quizIdStr: string, log: Logger) {
+    const quizId = BigInt(quizIdStr.replace("qz_", ""));
+
+    const quiz = await prisma.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        questions: {
+          include: { keywords: true },
+        },
+      },
+    });
+
+    if (!quiz) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    const errors: any[] = [];
+
+    // Validation 1: Group has published materials
+    const publishedMaterialsCount = await prisma.material.count({
+      where: { groupId: quiz.groupId, isPublished: true },
+    });
+    if (publishedMaterialsCount === 0) {
+      errors.push({
+        code: "no_materials_in_group",
+        message:
+          "This group has no published materials yet, so this quiz cannot be gated.",
+      });
+    }
+
+    // Validation 2: Every question has >= 1 blank
+    for (const q of quiz.questions) {
+      if (q.keywords.length === 0) {
+        errors.push({
+          code: "question_missing_blanks",
+          question_id: `q_${q.id}`,
+          message: "This question has no blanks defined.",
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new LecturerQuizError(422, "quiz.publishValidationFailed", {
+        status: "draft",
+        errors,
+      });
+    }
+
+    // Pass all validations -> Update to published
+    await prisma.quiz.update({
+      where: { id: quizId },
+      data: { isPublished: true },
+    });
+
+    log.info({ quizId: quiz.id }, "Lecturer published quiz");
+
+    return {
+      quiz_id: quizIdStr,
+      status: "published",
+    };
+  }
 }

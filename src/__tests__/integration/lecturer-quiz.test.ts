@@ -564,4 +564,124 @@ describe("Lecturer Quiz API", () => {
     const dbQuiz = await prisma.quiz.findUnique({ where: { id: quiz.id } });
     expect(dbQuiz?.isPublished).toBe(true);
   });
+
+  it("should list all quizzes in a group", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleListQ", [
+      { featureName: "lecturer_quiz_access", action: "read" },
+    ]);
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "list_q@test.com",
+    });
+
+    const group = await prisma.group.create({
+      data: { name: "List Q Group", description: "Desc" },
+    });
+    await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 21,
+        title: "Quiz 21",
+        passThreshold: 60,
+        isPublished: true,
+      },
+    });
+    await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 22,
+        title: "Quiz 22",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/groups/${group.id}/quizzes`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.data.quizzes.length).toBe(2);
+    expect(body.data.quizzes[0].level).toBe(21);
+    expect(body.data.quizzes[0].status).toBe("published");
+    expect(body.data.quizzes[1].level).toBe(22);
+    expect(body.data.quizzes[1].status).toBe("draft");
+    expect(body.data.quizzes[1].question_count).toBe(0);
+  });
+
+  it("should get full quiz details by ID", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleGetQ", [
+      { featureName: "lecturer_quiz_access", action: "read" },
+    ]);
+    const { token, user } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "get_q@test.com",
+    });
+
+    const group = await prisma.group.create({
+      data: { name: "Get Q Group", description: "Desc" },
+    });
+    await prisma.material.create({
+      data: {
+        groupId: group.id,
+        lecturerId: user.id,
+        title: "Gate Mat",
+        materialType: "text",
+        isPublished: true,
+      },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 23,
+        title: "Get Quiz",
+        passThreshold: 75,
+        isPublished: false,
+      },
+    });
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "Q?",
+        answerText: "A",
+        questionOrder: 1,
+      },
+    });
+    await prisma.questionKeyword.create({
+      data: {
+        questionId: question.id,
+        blankOrder: 1,
+        correctAnswer: "A",
+        startIndex: 0,
+        endIndex: 1,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/quizzes/qz_${quiz.id}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.data.quiz_id).toBe(`qz_${quiz.id}`);
+    expect(body.data.pass_threshold).toBe(75);
+    expect(body.data.status).toBe("draft");
+    expect(body.data.questions.length).toBe(1);
+    expect(body.data.questions[0].blanks.length).toBe(1);
+    expect(body.data.gating_materials.length).toBe(1);
+    expect(body.data.gating_materials[0].title).toBe("Gate Mat");
+  });
 });

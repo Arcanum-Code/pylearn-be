@@ -63,4 +63,50 @@ export const LecturerQuizModel = {
       status: z.string(),
     }),
   ),
+  listQuizzesResponse: createResponseSchema(
+    z.object({
+      quizzes: z.array(
+        z.object({
+          quiz_id: z.string(),
+          level: z.number(),
+          title: z.string(),
+          status: z.string(),
+          question_count: z.number(),
+        }),
+      ),
+    }),
+  ),
+  getQuizResponse: createResponseSchema(
+    z.object({
+      quiz_id: z.string(),
+      group_id: z.string(),
+      level: z.number(),
+      title: z.string(),
+      status: z.string(),
+      pass_threshold: z.number(),
+      questions: z.array(
+        z.object({
+          question_id: z.string(),
+          question_text: z.string(),
+          key_answer_text: z.string(),
+          sequence_order: z.number(),
+          blanks: z.array(
+            z.object({
+              blank_id: z.string(),
+              keyword: z.string(),
+              start_index: z.number(),
+              end_index: z.number(),
+            }),
+          ),
+        }),
+      ),
+      gating_materials: z.array(
+        z.object({
+          material_id: z.string(),
+          title: z.string(),
+          sequence: z.number(),
+        }),
+      ),
+    }),
+  ),
 } as const;

@@ -414,4 +414,75 @@ export class LecturerQuizService {
       status: "published",
     };
   }
+
+  static async listQuizzes(groupId: string, log: Logger) {
+    const quizzes = await prisma.quiz.findMany({
+      where: { groupId },
+      include: {
+        _count: { select: { questions: true } },
+      },
+      orderBy: { levelNumber: "asc" },
+    });
+
+    return {
+      quizzes: quizzes.map((q) => ({
+        quiz_id: `qz_${q.id}`,
+        level: q.levelNumber,
+        title: q.title,
+        status: q.isPublished ? "published" : "draft",
+        question_count: q._count.questions,
+      })),
+    };
+  }
+
+  static async getQuiz(quizIdStr: string, log: Logger) {
+    const quizId = BigInt(quizIdStr.replace("qz_", ""));
+    const quiz = await prisma.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        questions: {
+          orderBy: { questionOrder: "asc" },
+          include: { keywords: { orderBy: { blankOrder: "asc" } } },
+        },
+        group: {
+          include: {
+            materials: {
+              where: { isPublished: true },
+              orderBy: { sequence: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!quiz) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    return {
+      quiz_id: quizIdStr,
+      group_id: quiz.groupId,
+      level: quiz.levelNumber,
+      title: quiz.title,
+      status: quiz.isPublished ? "published" : "draft",
+      pass_threshold: quiz.passThreshold,
+      questions: quiz.questions.map((q) => ({
+        question_id: `q_${q.id}`,
+        question_text: q.questionText,
+        key_answer_text: q.answerText,
+        sequence_order: q.questionOrder,
+        blanks: q.keywords.map((b) => ({
+          blank_id: `b_${b.id}`,
+          keyword: b.correctAnswer,
+          start_index: b.startIndex,
+          end_index: b.endIndex,
+        })),
+      })),
+      gating_materials: quiz.group.materials.map((m) => ({
+        material_id: `m_${m.id}`,
+        title: m.title,
+        sequence: m.sequence,
+      })),
+    };
+  }
 }

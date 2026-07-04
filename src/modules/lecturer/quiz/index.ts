@@ -167,6 +167,42 @@ export const lecturerQuiz = createProtectedApp({ tags: ["Lecturer Quiz"] })
       beforeHandle: hasPermission(FEATURE_NAME, "update"),
     },
   )
+  .get(
+    "/groups/:groupId/quizzes",
+    async ({ set, params, log, locale }) => {
+      const result = await LecturerQuizService.listQuizzes(params.groupId, log);
+      return successResponse(
+        set,
+        result,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      response: { 200: LecturerQuizModel.listQuizzesResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "read"),
+    },
+  )
+  .get(
+    "/quizzes/:quizId",
+    async ({ set, params, log, locale }) => {
+      const result = await LecturerQuizService.getQuiz(params.quizId, log);
+      return successResponse(
+        set,
+        result,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      response: { 200: LecturerQuizModel.getQuizResponse },
+      beforeHandle: hasPermission(FEATURE_NAME, "read"),
+    },
+  )
   .onError(({ error, set, locale }) => {
     if (error instanceof LecturerQuizError) {
       return errorResponse(

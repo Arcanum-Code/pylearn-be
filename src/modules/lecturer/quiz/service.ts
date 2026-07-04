@@ -156,4 +156,82 @@ export class LecturerQuizService {
       blanks: [],
     };
   }
+
+  static async replaceBlanks(
+    questionIdStr: string,
+    data: {
+      blanks: { keyword: string; start_index: number; end_index: number }[];
+    },
+    log: Logger,
+  ) {
+    const questionId = BigInt(questionIdStr.replace("q_", ""));
+
+    const question = await prisma.quizQuestion.findUnique({
+      where: { id: questionId },
+    });
+    if (!question) {
+      throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    // Validate that each blank exactly matches the answerText substring
+    for (const blank of data.blanks) {
+      if (
+        blank.start_index >= blank.end_index ||
+        blank.end_index > question.answerText.length
+      ) {
+        throw new LecturerQuizError(422, "quiz.invalidBlankIndices", { blank });
+      }
+      const actualSubstring = question.answerText.substring(
+        blank.start_index,
+        blank.end_index,
+      );
+      if (actualSubstring !== blank.keyword) {
+        throw new LecturerQuizError(422, "quiz.blankMismatch", {
+          expected: blank.keyword,
+          actual: actualSubstring,
+        });
+      }
+    }
+
+    // Sort blanks by start_index to guarantee sequential blankOrder
+    const sortedBlanks = [...data.blanks].sort(
+      (a, b) => a.start_index - b.start_index,
+    );
+
+    // Run delete + inserts in a transaction to return IDs safely
+    const createdBlanks = await prisma.$transaction(async (tx) => {
+      await tx.questionKeyword.deleteMany({ where: { questionId } });
+
+      const results = [];
+      for (let i = 0; i < sortedBlanks.length; i++) {
+        const blank = sortedBlanks[i];
+        const newBlank = await tx.questionKeyword.create({
+          data: {
+            questionId,
+            blankOrder: i + 1,
+            correctAnswer: blank.keyword,
+            startIndex: blank.start_index,
+            endIndex: blank.end_index,
+          },
+        });
+        results.push(newBlank);
+      }
+      return results;
+    });
+
+    log.info(
+      { questionId: question.id, blanksCount: createdBlanks.length },
+      "Lecturer replaced question blanks",
+    );
+
+    return {
+      question_id: questionIdStr,
+      blanks: createdBlanks.map((b) => ({
+        blank_id: `b_${b.id}`,
+        keyword: b.correctAnswer,
+        start_index: b.startIndex,
+        end_index: b.endIndex,
+      })),
+    };
+  }
 }

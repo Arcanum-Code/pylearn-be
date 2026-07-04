@@ -152,4 +152,113 @@ describe("Lecturer Quiz API", () => {
     expect(body.data.blanks).toEqual([]);
     expect(body.data.question_id).toBeDefined();
   });
+
+  it("should define blanks for a question successfully", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleBlanks", [
+      { featureName: "lecturer_quiz_access", action: "update" },
+    ]);
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "blanks@test.com",
+    });
+
+    // Setup group, quiz and question
+    const group = await prisma.group.create({
+      data: { name: "Blank Group", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 11,
+        title: "Blank Quiz",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "What is an array?",
+        answerText:
+          "An array is a data structure consisting of a collection of elements.",
+        questionOrder: 1,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/questions/q_${question.id}/blanks`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          blanks: [
+            { keyword: "data structure", start_index: 14, end_index: 28 },
+            { keyword: "elements", start_index: 59, end_index: 67 },
+          ],
+        }),
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body.data.question_id).toBe(`q_${question.id}`);
+    expect(body.data.blanks.length).toBe(2);
+    expect(body.data.blanks[0].keyword).toBe("data structure");
+    expect(body.data.blanks[0].blank_id).toBeDefined();
+  });
+
+  it("should reject blanks that do not match the key answer text", async () => {
+    const role = await createTestRoleWithPermissions("LecturerRoleBlanksFail", [
+      { featureName: "lecturer_quiz_access", action: "update" },
+    ]);
+    const { token } = await createAuthenticatedUser({
+      roleId: role.id,
+      email: "blanks2@test.com",
+    });
+
+    const group = await prisma.group.create({
+      data: { name: "Blank Group 2", description: "Desc" },
+    });
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        levelNumber: 12,
+        title: "Blank Quiz 2",
+        passThreshold: 60,
+        isPublished: false,
+      },
+    });
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "What is an array?",
+        answerText: "An array is a data structure.",
+        questionOrder: 1,
+      },
+    });
+
+    const req = new Request(
+      `http://localhost/api/lecturer/questions/q_${question.id}/blanks`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          blanks: [
+            { keyword: "data structure", start_index: 0, end_index: 14 }, // Incorrect indices!
+          ],
+        }),
+      },
+    );
+
+    const res = await app.handle(req);
+    expect(res.status).toBe(422); // Validation Error expected
+  });
 });

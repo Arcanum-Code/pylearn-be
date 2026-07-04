@@ -13,3 +13,13 @@ export const createQuestionSchema = z.object({
   key_answer_text: z.string().min(1),
   sequence_order: z.number().int().min(1),
 });
+
+export const replaceBlanksSchema = z.object({
+  blanks: z.array(
+    z.object({
+      keyword: z.string().min(1),
+      start_index: z.number().int().min(0),
+      end_index: z.number().int().min(0),
+    }),
+  ),
+});

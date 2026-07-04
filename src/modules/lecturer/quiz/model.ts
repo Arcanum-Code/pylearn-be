@@ -24,4 +24,17 @@ export const LecturerQuizModel = {
       blanks: z.array(z.any()),
     }),
   ),
+  replaceBlanksResponse: createResponseSchema(
+    z.object({
+      question_id: z.string(),
+      blanks: z.array(
+        z.object({
+          blank_id: z.string(),
+          keyword: z.string(),
+          start_index: z.number(),
+          end_index: z.number(),
+        }),
+      ),
+    }),
+  ),
 } as const;

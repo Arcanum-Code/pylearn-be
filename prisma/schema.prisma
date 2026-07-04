@@ -33,6 +33,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   QuizAttempt   QuizAttempt[]
+  groupEnrollments GroupEnrollment[]
 }
 
 model Material {
@@ -65,6 +66,7 @@ model Group {
   quizzes     Quiz[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  enrollments GroupEnrollment[]
 }
 
 model MaterialRead {
@@ -118,19 +120,20 @@ model QuizQuestion {
 }
 
 model QuizAttempt {
-  id          BigInt       @id @default(autoincrement())
-  quizId      BigInt
-  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  studentId   String
-  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  startedAt   DateTime     @default(now())
-  submittedAt DateTime?
-  score       Float?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  answers     QuizAnswer[]
+  id            BigInt       @id @default(autoincrement())
+  quizId        BigInt
+  quiz          Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attemptNumber Int          @default(1)
+  startedAt     DateTime     @default(now())
+  submittedAt   DateTime?
+  score         Float?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  answers       QuizAnswer[]
 
-  @@unique([quizId, studentId])
+  @@unique([quizId, studentId, attemptNumber])
 }
 
 model QuizPrerequisite {
@@ -151,6 +154,7 @@ model QuestionKeyword {
   correctAnswer String       @db.Text
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
+  quizAnswerItems QuizAnswerItem[]
 
   @@unique([questionId, blankOrder])
 }
@@ -166,6 +170,7 @@ model QuizAnswer {
   answeredAt     DateTime     @default(now())
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  items          QuizAnswerItem[]
 
   @@unique([quizAttemptId, quizQuestionId])
 }
@@ -218,3 +223,27 @@ model RoleFeature {
 
   @@unique([roleId, featureId])
 }
+
+model GroupEnrollment {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, studentId])
+}
+
+model QuizAnswerItem {
+  id              BigInt          @id @default(autoincrement())
+  quizAnswerId    BigInt
+  quizAnswer      QuizAnswer      @relation(fields: [quizAnswerId], references: [id], onDelete: Cascade)
+  keywordId       BigInt
+  keyword         QuestionKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  isCorrect       Boolean
+  createdAt       DateTime        @default(now())
+
+  @@unique([quizAnswerId, keywordId])
+}
+

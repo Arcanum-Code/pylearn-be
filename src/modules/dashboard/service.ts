@@ -182,4 +182,61 @@ export abstract class DashboardService {
       })),
     };
   }
+
+  static async getSummary(groupId: string, log: Logger) {
+    log.debug({ groupId }, "Fetching dashboard summary");
+
+    const total_students = await prisma.groupEnrollment.count({
+      where: { groupId },
+    });
+
+    const total_materials = await prisma.material.count({
+      where: { groupId },
+    });
+
+    return {
+      group_id: groupId,
+      total_students,
+      avg_materials_read: 0.0,
+      total_materials,
+      avg_pass_rate: 0.0,
+      pass_rate_trend: {
+        current_week: 0.0,
+        previous_week: 0.0,
+        delta: 0.0,
+      },
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  static async getContentHealth(groupId: string, log: Logger) {
+    log.debug({ groupId }, "Fetching content health");
+
+    const quizzes = await prisma.quiz.findMany({
+      where: { groupId },
+      select: { id: true, levelNumber: true, title: true },
+    });
+
+    const materials = await prisma.material.findMany({
+      where: { groupId },
+      select: { id: true, title: true },
+    });
+
+    return {
+      quizzes: quizzes.map((q) => ({
+        quiz_id: q.id.toString(),
+        level: q.levelNumber,
+        title: q.title,
+        first_attempt_pass_rate: 0.0,
+        avg_attempts_to_pass: 0.0,
+        flag: null,
+      })),
+      materials: materials.map((m) => ({
+        material_id: m.id.toString(),
+        title: m.title,
+        read_rate: 0.0,
+        flag: null,
+      })),
+    };
+  }
 }

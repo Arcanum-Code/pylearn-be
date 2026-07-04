@@ -1,5 +1,6 @@
 services:
   app:
+    build: .
     image: ghcr.io/arcanum-code/pylearn-be:main
     container_name: pylearn-backend
     env_file:

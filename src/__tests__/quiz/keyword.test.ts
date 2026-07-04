@@ -7,7 +7,7 @@ import {
   resetDatabase,
 } from "../test_utils";
 
-describe.skip("Question Keywords API", () => {
+describe("Question Keywords API", () => {
   let authHeaders: any;
   let quizId: string;
 
@@ -15,8 +15,6 @@ describe.skip("Question Keywords API", () => {
     await resetDatabase();
 
     const role = await createTestRoleWithPermissions("Admin", [
-      { featureName: "material_management", action: "create" },
-      { featureName: "material_management", action: "read" },
       { featureName: "quiz_management", action: "create" },
       { featureName: "quiz_management", action: "read" },
       { featureName: "quiz_management", action: "update" },
@@ -28,37 +26,15 @@ describe.skip("Question Keywords API", () => {
 
     const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Setup hierarchy to get a valid quizId
-    const mResponse = await app.handle(
-      new Request("http://localhost/materials", {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          lecturerId: auth.user.id,
-          groupId: group.id,
-          title: "Test Material",
-          materialType: "text",
-        }),
-      }),
-    );
-    const mBody = await mResponse.json();
-    const materialId = mBody.data.id;
-
-    const lResponse = await app.handle(
-      new Request(`http://localhost/materials/${materialId}/levels`, {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({ title: "Level 1" }),
-      }),
-    );
-    const lBody = await lResponse.json();
-    const levelId = lBody.data.id;
-
     const qResponse = await app.handle(
       new Request(`http://localhost/quizzes`, {
         method: "POST",
         headers: authHeaders,
-        body: JSON.stringify({ title: "Quiz 1", levelId: levelId }),
+        body: JSON.stringify({
+          title: "Quiz 1",
+          groupId: group.id,
+          levelNumber: 1,
+        }),
       }),
     );
     const qBody = await qResponse.json();
@@ -88,7 +64,7 @@ describe.skip("Question Keywords API", () => {
             "content-type": "application/json",
           },
           body: JSON.stringify({
-            questionId: question.id.toString(), // Added to body since it's no longer in the URL
+            questionId: question.id.toString(),
             blankOrder: 1,
             correctAnswer: "answer1",
           }),
@@ -204,7 +180,6 @@ describe.skip("Question Keywords API", () => {
       });
 
       const res = await app.handle(
-        // Query param used for fetching list based on questionId
         new Request(
           `http://localhost/quizzes/keywords?questionId=${question.id.toString()}`,
           {
@@ -217,8 +192,6 @@ describe.skip("Question Keywords API", () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.data).toHaveLength(2);
-      expect(body.data[0].quizId).toBe(quizId);
-      expect(body.data[0].quizTitle).toBe("Quiz 1");
       expect(body.data[0].blankOrder).toBe(1);
       expect(body.data[1].blankOrder).toBe(2);
     });

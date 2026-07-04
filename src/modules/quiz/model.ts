@@ -2,15 +2,27 @@ import { z } from "zod";
 import { createErrorSchema, createResponseSchema } from "@/libs/response";
 
 // ==========================================
-// QUIZ LEVEL SCHEMAS
+// KEYWORD SCHEMAS
 // ==========================================
-export const QuizLevelSafe = z.object({
+export const QuestionKeywordSafe = z.object({
   id: z.string(),
-  quizId: z.string(),
-  title: z.string(),
-  levelOrder: z.number().int(),
+  questionId: z.string(),
+  blankOrder: z.number().int(),
+  correctAnswer: z.string(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  quizId: z.string().optional(),
+  quizTitle: z.string().optional(),
+});
+
+// ==========================================
+// QUIZ PREREQUISITE SCHEMAS
+// ==========================================
+export const QuizPrerequisiteSafe = z.object({
+  id: z.string(),
+  quizId: z.string(),
+  materialId: z.string(),
+  materialTitle: z.string().optional(),
 });
 
 // ==========================================
@@ -18,29 +30,31 @@ export const QuizLevelSafe = z.object({
 // ==========================================
 export const QuizSafe = z.object({
   id: z.string(),
-  materialId: z.string(),
-  material: z.string(),
+  groupId: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   startTime: z.string().datetime().nullable(),
   endTime: z.string().datetime().nullable(),
   isPublished: z.boolean(),
+  levelNumber: z.number().int(),
+  passThreshold: z.number(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  levels: z.array(QuizLevelSafe),
+  prerequisites: z.array(QuizPrerequisiteSafe),
 });
 
 export const QuizCreateSafe = z.object({
   id: z.string(),
-  materialId: z.string(),
+  groupId: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   startTime: z.string().datetime().nullable(),
   endTime: z.string().datetime().nullable(),
   isPublished: z.boolean(),
+  levelNumber: z.number().int(),
+  passThreshold: z.number(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
-  levels: z.array(QuizLevelSafe),
 });
 
 export const QuizDeleteSafe = z.object({
@@ -52,9 +66,7 @@ export const QuizDeleteSafe = z.object({
 // ==========================================
 export const QuizQuestionSafe = z.object({
   id: z.string(),
-  quizLevelId: z.string(),
-  quizLevelTitle: z.string().optional(),
-  quizId: z.string().optional(),
+  quizId: z.string(),
   quizTitle: z.string().optional(),
   questionText: z.string(),
   answerText: z.string(),
@@ -62,11 +74,12 @@ export const QuizQuestionSafe = z.object({
   questionOrder: z.number(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  keywords: z.array(QuestionKeywordSafe).optional(),
 });
 
 export const QuizQuestionWithoutAnswerText = z.object({
   id: z.string(),
-  quizLevelId: z.string(),
+  quizId: z.string(),
   questionText: z.string(),
   maxScore: z.number(),
   questionOrder: z.number(),
@@ -75,7 +88,6 @@ export const QuizQuestionWithoutAnswerText = z.object({
 // ==========================================
 // QUIZ ATTEMPT SCHEMAS
 // ==========================================
-
 export const QuizProgressStatusSchema = z.enum([
   "NOT_STARTED",
   "IN_PROGRESS",
@@ -90,7 +102,7 @@ export const QuizAttemptHistoryItemSchema = z.object({
 
 export const QuizAttemptSafe = z.object({
   id: z.string(),
-  quizLevelId: z.string(),
+  quizId: z.string(),
   quizTitle: z.string().optional(),
   studentId: z.string(),
   studentName: z.string().optional(),
@@ -111,42 +123,40 @@ export const QuizResultQuestionSafe = z.object({
 
 export const QuizResultSafe = z.object({
   attemptId: z.string(),
-  quizLevelId: z.string(),
+  quizId: z.string(),
   quizTitle: z.string(),
-  levelTitle: z.string(),
+  levelNumber: z.number().int(),
   score: z.number().nullable(),
   startedAt: z.string().datetime(),
   submittedAt: z.string().datetime(),
   details: z.array(QuizResultQuestionSafe),
 });
 
-export const QuizLevelProgressSchema = z.object({
-  levelId: z.string(),
+export const QuizProgressItemSchema = z.object({
+  quizId: z.string(),
   title: z.string(),
-  levelOrder: z.number().int(),
+  levelNumber: z.number().int(),
   status: z.enum(["NOT_STARTED", "IN_PROGRESS", "COMPLETED"]),
   currentAttemptId: z.string().nullable(),
   totalQuestions: z.number().int(),
 });
 
 export const QuizProgressSafe = z.object({
-  quizId: z.string(),
-  levels: z.array(QuizLevelProgressSchema),
+  groupId: z.string(),
+  progress: z.array(QuizProgressItemSchema),
   attemptHistory: z.array(QuizAttemptHistoryItemSchema),
 });
 
-// Filter schema incoming from URL Query string strings
 export const GetAllAttemptsResultsQuerySchema = z.object({
-  quizLevelId: z.string().optional(),
+  quizId: z.string().optional(),
   studentId: z.string().optional(),
 });
 
-// Row representation inside the returned overview table list array
 export const QuizAttemptSummarySafe = z.object({
   attemptId: z.string(),
-  quizLevelId: z.string(),
+  quizId: z.string(),
   quizTitle: z.string(),
-  levelTitle: z.string(),
+  levelNumber: z.number().int(),
   studentId: z.string(),
   studentName: z.string(),
   studentEmail: z.string(),
@@ -172,28 +182,6 @@ export const QuizAnswerSafe = z.object({
 });
 
 // ==========================================
-// GROUPED SCHEMAS
-// ==========================================
-export const GroupedQuestion = z.object({
-  id: z.string(),
-  questionText: z.string(),
-  maxScore: z.number(),
-  questionOrder: z.number(),
-});
-
-export const GroupedQuiz = z.object({
-  quizId: z.string(),
-  quizTitle: z.string(),
-  questions: z.array(GroupedQuestion),
-});
-
-export const GroupedMaterialLevel = z.object({
-  levelId: z.string(),
-  levelTitle: z.string(),
-  quizzes: z.array(GroupedQuiz),
-});
-
-// ==========================================
 // ELYSIA MODEL DEFINITION
 // ==========================================
 export const QuizModel = {
@@ -204,13 +192,6 @@ export const QuizModel = {
   updateResult: createResponseSchema(QuizCreateSafe),
   deleteResult: createResponseSchema(QuizDeleteSafe),
 
-  // Quiz Levels (NEW)
-  level: createResponseSchema(QuizLevelSafe),
-  levels: createResponseSchema(z.array(QuizLevelSafe)),
-  createLevelResult: createResponseSchema(QuizLevelSafe),
-  updateLevelResult: createResponseSchema(QuizLevelSafe),
-  deleteLevelResult: createResponseSchema(QuizDeleteSafe),
-
   // Questions
   question: createResponseSchema(QuizQuestionSafe),
   questions: createResponseSchema(z.array(QuizQuestionSafe)),
@@ -220,6 +201,10 @@ export const QuizModel = {
   createQuestionResult: createResponseSchema(QuizQuestionSafe),
   updateQuestionResult: createResponseSchema(QuizQuestionSafe),
   deleteQuestionResult: createResponseSchema(QuizDeleteSafe),
+
+  // Keywords
+  keyword: createResponseSchema(QuestionKeywordSafe),
+  keywords: createResponseSchema(z.array(QuestionKeywordSafe)),
 
   // Attempts
   attempt: createResponseSchema(QuizAttemptSafe),
@@ -257,13 +242,6 @@ export type QuizModelType = {
   updateResult: z.infer<typeof QuizModel.updateResult>;
   deleteResult: z.infer<typeof QuizModel.deleteResult>;
 
-  // Quiz Levels
-  level: z.infer<typeof QuizModel.level>;
-  levels: z.infer<typeof QuizModel.levels>;
-  createLevelResult: z.infer<typeof QuizModel.createLevelResult>;
-  updateLevelResult: z.infer<typeof QuizModel.updateLevelResult>;
-  deleteLevelResult: z.infer<typeof QuizModel.deleteLevelResult>;
-
   // Questions
   question: z.infer<typeof QuizModel.question>;
   questions: z.infer<typeof QuizModel.questions>;
@@ -271,6 +249,10 @@ export type QuizModelType = {
   createQuestionResult: z.infer<typeof QuizModel.createQuestionResult>;
   updateQuestionResult: z.infer<typeof QuizModel.updateQuestionResult>;
   deleteQuestionResult: z.infer<typeof QuizModel.deleteQuestionResult>;
+
+  // Keywords
+  keyword: z.infer<typeof QuizModel.keyword>;
+  keywords: z.infer<typeof QuizModel.keywords>;
 
   // Attempts
   attempt: z.infer<typeof QuizModel.attempt>;

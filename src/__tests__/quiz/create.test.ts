@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { app } from "@/server";
+import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
-  createTestMaterial,
   createTestRoleWithPermissions,
   randomIp,
 } from "../test_utils";
@@ -17,12 +17,11 @@ describe("POST /quizzes", () => {
     const role = await createTestRoleWithPermissions("QuizCreatorRole", [
       { featureName: "quiz_management", action: "create" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    // Directly use the material without creating an intermediary material level
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
       new Request(`http://localhost/quizzes`, {
@@ -33,9 +32,11 @@ describe("POST /quizzes", () => {
           "x-forwarded-for": randomIp(),
         },
         body: JSON.stringify({
-          materialId: material.id.toString(),
+          groupId: group.id,
           title: "New Quiz",
           description: "Test description",
+          levelNumber: 1,
+          passThreshold: 75.0,
         }),
       }),
     );
@@ -44,18 +45,20 @@ describe("POST /quizzes", () => {
     expect(res.status).toBe(201);
     expect(json.data.title).toBe("New Quiz");
     expect(json.data.description).toBe("Test description");
-    expect(json.data.materialId).toBe(material.id.toString());
+    expect(json.data.groupId).toBe(group.id);
+    expect(json.data.levelNumber).toBe(1);
+    expect(json.data.passThreshold).toBe(75.0);
   });
 
   it("should create quiz with timing constraints", async () => {
     const role = await createTestRoleWithPermissions("QuizCreatorRole", [
       { featureName: "quiz_management", action: "create" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
       new Request(`http://localhost/quizzes`, {
@@ -66,11 +69,11 @@ describe("POST /quizzes", () => {
           "x-forwarded-for": randomIp(),
         },
         body: JSON.stringify({
-          materialId: material.id.toString(), // Updated field name
+          groupId: group.id,
           title: "Timed Quiz",
           startTime: "2025-01-01T00:00:00Z",
           endTime: "2025-01-02T00:00:00Z",
-          isPublished: true,
+          levelNumber: 1,
         }),
       }),
     );
@@ -79,18 +82,17 @@ describe("POST /quizzes", () => {
     const json = await res.json();
     expect(json.data.startTime).toBe("2025-01-01T00:00:00.000Z");
     expect(json.data.endTime).toBe("2025-01-02T00:00:00.000Z");
-    expect(json.data.isPublished).toBe(true);
   });
 
   it("should reject when user lacks create permission", async () => {
     const role = await createTestRoleWithPermissions("QuizReaderRole", [
       { featureName: "quiz_management", action: "read" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
       new Request(`http://localhost/quizzes`, {
@@ -101,8 +103,9 @@ describe("POST /quizzes", () => {
           "x-forwarded-for": randomIp(),
         },
         body: JSON.stringify({
-          materialId: material.id.toString(), // Updated field name
+          groupId: group.id,
           title: "Test Quiz",
+          levelNumber: 1,
         }),
       }),
     );

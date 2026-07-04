@@ -4,7 +4,6 @@ import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
-  createTestMaterial,
   createTestRoleWithPermissions,
   randomIp,
 } from "../test_utils";
@@ -18,18 +17,36 @@ describe("PATCH /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizUpdaterRole", [
       { featureName: "quiz_management", action: "update" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed directly under materialId
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id,
+        groupId: group.id,
         title: "Original Title",
         isPublished: false,
+        levelNumber: 1,
+      },
+    });
+
+    // Create a question with a keyword so publishing is allowed
+    const question = await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "Question 1",
+        answerText: "Answer is [blank]",
+        questionOrder: 1,
+      },
+    });
+
+    await prisma.questionKeyword.create({
+      data: {
+        questionId: question.id,
+        blankOrder: 1,
+        correctAnswer: "blank",
       },
     });
 
@@ -51,23 +68,107 @@ describe("PATCH /quizzes/:id", () => {
     expect(json.data.isPublished).toBe(true);
   });
 
+  it("should reject publishing if quiz has no questions", async () => {
+    const role = await createTestRoleWithPermissions("QuizUpdaterRole", [
+      { featureName: "quiz_management", action: "update" },
+    ]);
+    const { authHeaders } = await createAuthenticatedUser({
+      roleId: role.id,
+    });
+
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        title: "No Questions Quiz",
+        isPublished: false,
+        levelNumber: 1,
+      },
+    });
+
+    const res = await app.handle(
+      new Request(`http://localhost/quizzes/${quiz.id}`, {
+        method: "PATCH",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json",
+          "x-forwarded-for": randomIp(),
+        },
+        body: JSON.stringify({ isPublished: true }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.message).toBe("A quiz with no questions cannot be published.");
+  });
+
+  it("should reject publishing if a question has zero blanks", async () => {
+    const role = await createTestRoleWithPermissions("QuizUpdaterRole", [
+      { featureName: "quiz_management", action: "update" },
+    ]);
+    const { authHeaders } = await createAuthenticatedUser({
+      roleId: role.id,
+    });
+
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
+
+    const quiz = await prisma.quiz.create({
+      data: {
+        groupId: group.id,
+        title: "No Blanks Quiz",
+        isPublished: false,
+        levelNumber: 1,
+      },
+    });
+
+    // Create a question WITHOUT any keywords
+    await prisma.quizQuestion.create({
+      data: {
+        quizId: quiz.id,
+        questionText: "Question 1",
+        answerText: "Answer",
+        questionOrder: 1,
+      },
+    });
+
+    const res = await app.handle(
+      new Request(`http://localhost/quizzes/${quiz.id}`, {
+        method: "PATCH",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json",
+          "x-forwarded-for": randomIp(),
+        },
+        body: JSON.stringify({ isPublished: true }),
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.message).toBe(
+      "All questions must have at least one blank to be published.",
+    );
+  });
+
   it("should update quiz with new timing constraints", async () => {
     const role = await createTestRoleWithPermissions("QuizUpdaterRole", [
       { featureName: "quiz_management", action: "update" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed directly under materialId
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id,
+        groupId: group.id,
         title: "Test Quiz",
         startTime: new Date("2025-01-01T00:00:00Z"),
         endTime: new Date("2025-01-02T00:00:00Z"),
+        levelNumber: 1,
       },
     });
 
@@ -96,19 +197,19 @@ describe("PATCH /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizUpdaterRole", [
       { featureName: "quiz_management", action: "update" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed directly under materialId
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id,
+        groupId: group.id,
         title: "Test Quiz",
         startTime: new Date("2025-01-01T00:00:00Z"),
         endTime: new Date("2025-01-02T00:00:00Z"),
+        levelNumber: 1,
       },
     });
 
@@ -159,17 +260,17 @@ describe("PATCH /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizReaderRole", [
       { featureName: "quiz_management", action: "read" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed directly under materialId
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id,
+        groupId: group.id,
         title: "Test Quiz",
+        levelNumber: 1,
       },
     });
 

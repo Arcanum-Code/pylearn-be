@@ -4,7 +4,6 @@ import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
-  createTestMaterial,
   createTestRoleWithPermissions,
   randomIp,
 } from "../test_utils";
@@ -14,75 +13,61 @@ describe("GET /quizzes", () => {
     await resetDatabase();
   });
 
-  it("should return quizzes for a material with nested level and material info", async () => {
+  it("should return quizzes for a group", async () => {
     const role = await createTestRoleWithPermissions("QuizReaderRole", [
       { featureName: "quiz_management", action: "read" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Seed a quiz directly under the material with a nested quiz level
     await prisma.quiz.create({
       data: {
-        materialId: material.id, // Updated relationship
+        groupId: group.id,
         title: "Quiz 1",
         description: "Test quiz",
         isPublished: true,
-        levels: {
-          create: {
-            title: "Level 1",
-            levelOrder: 1,
-          },
-        },
+        levelNumber: 1,
       },
     });
 
     const res = await app.handle(
-      new Request(
-        // Updated query parameter to focus on the parent material
-        `http://localhost/quizzes?materialId=${material.id.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
-          },
+      new Request(`http://localhost/quizzes?groupId=${group.id}`, {
+        method: "GET",
+        headers: {
+          ...authHeaders,
+          "x-forwarded-for": randomIp(),
         },
-      ),
+      }),
     );
 
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.data).toHaveLength(1);
     expect(json.data[0].title).toBe("Quiz 1");
-    expect(json.data[0].material).toBe(material.title);
+    expect(json.data[0].groupId).toBe(group.id);
   });
 
   it("should return empty list when no quizzes exist", async () => {
     const role = await createTestRoleWithPermissions("QuizReaderRole", [
       { featureName: "quiz_management", action: "read" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
-      new Request(
-        // Updated query parameter
-        `http://localhost/quizzes?materialId=${material.id.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
-          },
+      new Request(`http://localhost/quizzes?groupId=${group.id}`, {
+        method: "GET",
+        headers: {
+          ...authHeaders,
+          "x-forwarded-for": randomIp(),
         },
-      ),
+      }),
     );
 
     expect(res.status).toBe(200);
@@ -91,21 +76,12 @@ describe("GET /quizzes", () => {
   });
 
   it("should return 401 without authentication", async () => {
-    const role = await createTestRoleWithPermissions("QuizReaderRole", [
-      { featureName: "quiz_management", action: "read" },
-    ]);
-    const { user } = await createAuthenticatedUser({ roleId: role.id });
-
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
-      new Request(
-        // Updated query parameter
-        `http://localhost/quizzes?materialId=${material.id.toString()}`,
-        {
-          method: "GET",
-        },
-      ),
+      new Request(`http://localhost/quizzes?groupId=${group.id}`, {
+        method: "GET",
+      }),
     );
 
     expect(res.status).toBe(401);
@@ -113,24 +89,20 @@ describe("GET /quizzes", () => {
 
   it("should return 403 if user lacks 'read' permission", async () => {
     const role = await createTestRoleWithPermissions("NoQuizPermsRole", []);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
     const res = await app.handle(
-      new Request(
-        // Updated query parameter to materialId
-        `http://localhost/quizzes?materialId=${material.id.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
-          },
+      new Request(`http://localhost/quizzes?groupId=${group.id}`, {
+        method: "GET",
+        headers: {
+          ...authHeaders,
+          "x-forwarded-for": randomIp(),
         },
-      ),
+      }),
     );
 
     expect(res.status).toBe(403);

@@ -4,7 +4,6 @@ import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
-  createTestMaterial,
   createTestRoleWithPermissions,
   randomIp,
 } from "../test_utils";
@@ -18,17 +17,17 @@ describe("DELETE /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizDeleterRole", [
       { featureName: "quiz_management", action: "delete" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed the test quiz directly under the material
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id, // Updated field name
+        groupId: group.id,
         title: "Test Quiz",
+        levelNumber: 1,
       },
     });
 
@@ -54,7 +53,7 @@ describe("DELETE /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizDeleterRole", [
       { featureName: "quiz_management", action: "delete" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
@@ -75,17 +74,17 @@ describe("DELETE /quizzes/:id", () => {
     const role = await createTestRoleWithPermissions("QuizReaderRole", [
       { featureName: "quiz_management", action: "read" },
     ]);
-    const { user, authHeaders } = await createAuthenticatedUser({
+    const { authHeaders } = await createAuthenticatedUser({
       roleId: role.id,
     });
 
-    const material = await createTestMaterial(user.id);
+    const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // Updated: Seed the test quiz directly under the material
     const quiz = await prisma.quiz.create({
       data: {
-        materialId: material.id, // Updated field name
+        groupId: group.id,
         title: "Test Quiz",
+        levelNumber: 1,
       },
     });
 

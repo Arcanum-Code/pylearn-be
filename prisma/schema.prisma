@@ -53,8 +53,8 @@ model Material {
   version      Int       @default(1)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  quizzes      Quiz[]
-  reads        MaterialRead[]
+  reads             MaterialRead[]
+  quizPrerequisites QuizPrerequisite[]
 }
 
 model Group {
@@ -62,6 +62,7 @@ model Group {
   name        String
   description String?
   materials   Material[]
+  quizzes     Quiz[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
@@ -81,53 +82,45 @@ model MaterialRead {
 }
 
 model Quiz {
-  id          BigInt      @id @default(autoincrement())
-  materialId  BigInt
-  material    Material    @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  title       String
-  description String?     @db.Text
-  startTime   DateTime?
-  endTime     DateTime?
-  isPublished Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  levels      QuizLevel[]
-}
+  id            BigInt             @id @default(autoincrement())
+  groupId       String
+  group         Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?            @db.Text
+  startTime     DateTime?
+  endTime       DateTime?
+  isPublished   Boolean            @default(false)
+  levelNumber   Int
+  passThreshold Float              @default(70.0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  questions     QuizQuestion[]
+  QuizAttempt   QuizAttempt[]
+  prerequisites QuizPrerequisite[]
 
-model QuizLevel {
-  id         BigInt   @id @default(autoincrement())
-  quizId     BigInt
-  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  title      String
-  levelOrder Int
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  questions   QuizQuestion[]
-  QuizAttempt QuizAttempt[]
-
-  @@unique([quizId, levelOrder])
+  @@unique([groupId, levelNumber])
 }
 
 model QuizQuestion {
-  id            BigInt       @id @default(autoincrement())
-  quizLevelId   BigInt
-  quizLevel     QuizLevel    @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
-  questionText  String       @db.Text
-  answerText    String       @db.Text
-  maxScore      Int          @default(100)
+  id            BigInt            @id @default(autoincrement())
+  quizId        BigInt
+  quiz          Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionText  String            @db.Text
+  answerText    String            @db.Text
+  maxScore      Int               @default(100)
   questionOrder Int
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   QuizAnswer    QuizAnswer[]
+  keywords      QuestionKeyword[]
 
-  @@unique([quizLevelId, questionOrder])
+  @@unique([quizId, questionOrder])
 }
 
 model QuizAttempt {
   id          BigInt       @id @default(autoincrement())
-  quizLevelId BigInt
-  quizLevel   QuizLevel    @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
+  quizId      BigInt
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   studentId   String
   student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
   startedAt   DateTime     @default(now())
@@ -137,7 +130,29 @@ model QuizAttempt {
   updatedAt   DateTime     @updatedAt
   answers     QuizAnswer[]
 
-  @@unique([quizLevelId, studentId])
+  @@unique([quizId, studentId])
+}
+
+model QuizPrerequisite {
+  id         String   @id @default(cuid())
+  quizId     BigInt
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  materialId BigInt
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, materialId])
+}
+
+model QuestionKeyword {
+  id            BigInt       @id @default(autoincrement())
+  questionId    BigInt
+  question      QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  blankOrder    Int
+  correctAnswer String       @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([questionId, blankOrder])
 }
 
 model QuizAnswer {

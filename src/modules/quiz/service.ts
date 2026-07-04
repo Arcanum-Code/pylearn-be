@@ -4,8 +4,8 @@ import type {
   UpdateQuizInput,
   CreateQuizQuestionInput,
   UpdateQuizQuestionInput,
-  CreateQuizLevelInput,
-  UpdateQuizLevelInput,
+  CreateKeywordInput,
+  UpdateKeywordInput,
   CreateQuizAttemptInput,
   CreateQuizAnswerInput,
   UpdateQuizAnswerInput,
@@ -25,57 +25,57 @@ import { Prisma } from "@generated/prisma";
 
 const QUIZ_SELECT = {
   id: true,
-  materialId: true,
+  groupId: true,
   title: true,
   description: true,
   startTime: true,
   endTime: true,
   isPublished: true,
+  levelNumber: true,
+  passThreshold: true,
   createdAt: true,
   updatedAt: true,
-  material: { select: { id: true, title: true } },
-  levels: {
+  prerequisites: {
     select: {
       id: true,
       quizId: true,
-      title: true,
-      levelOrder: true,
-      createdAt: true,
-      updatedAt: true,
+      materialId: true,
+      material: { select: { id: true, title: true } },
     },
-    orderBy: { levelOrder: "asc" as const },
   },
-} as const;
-
-const LEVEL_SELECT = {
-  id: true,
-  quizId: true,
-  title: true,
-  levelOrder: true,
-  createdAt: true,
-  updatedAt: true,
 } as const;
 
 const QUESTION_SELECT = {
   id: true,
-  quizLevelId: true,
+  quizId: true,
   questionText: true,
   answerText: true,
   maxScore: true,
   questionOrder: true,
   createdAt: true,
   updatedAt: true,
-  quizLevel: {
+  quiz: {
     select: {
+      id: true,
       title: true,
-      quiz: { select: { id: true, title: true } },
     },
+  },
+  keywords: {
+    select: {
+      id: true,
+      questionId: true,
+      blankOrder: true,
+      correctAnswer: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: { blankOrder: "asc" as const },
   },
 } as const;
 
 export const STUDENT_QUESTION_SELECT = {
   id: true,
-  quizLevelId: true,
+  quizId: true,
   questionText: true,
   maxScore: true,
   questionOrder: true,
@@ -83,17 +83,17 @@ export const STUDENT_QUESTION_SELECT = {
 
 const ATTEMPT_SELECT = {
   id: true,
-  quizLevelId: true,
+  quizId: true,
   studentId: true,
   startedAt: true,
   submittedAt: true,
   createdAt: true,
   updatedAt: true,
-  quizLevel: {
+  quiz: {
     select: {
-      quiz: {
-        select: { title: true },
-      },
+      id: true,
+      title: true,
+      levelNumber: true,
     },
   },
   student: { select: { name: true } },
@@ -111,12 +111,20 @@ const ANSWER_SELECT = {
   quizQuestion: { select: { questionText: true } },
 } as const;
 
+const KEYWORD_SELECT = {
+  id: true,
+  questionId: true,
+  blankOrder: true,
+  correctAnswer: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 // ─────────────────────────────────────────────
 // Mappers: DB record → API response shape
 // ─────────────────────────────────────────────
 
 type QuizRecord = Prisma.QuizGetPayload<{ select: typeof QUIZ_SELECT }>;
-type LevelRecord = Prisma.QuizLevelGetPayload<{ select: typeof LEVEL_SELECT }>;
 type QuestionRecord = Prisma.QuizQuestionGetPayload<{
   select: typeof QUESTION_SELECT;
 }>;
@@ -126,55 +134,59 @@ type AttemptRecord = Prisma.QuizAttemptGetPayload<{
 type AnswerRecord = Prisma.QuizAnswerGetPayload<{
   select: typeof ANSWER_SELECT;
 }>;
-
-function mapLevel(level: LevelRecord) {
-  return {
-    id: level.id.toString(),
-    quizId: level.quizId.toString(),
-    title: level.title,
-    levelOrder: level.levelOrder,
-    createdAt: level.createdAt.toISOString(),
-    updatedAt: level.updatedAt.toISOString(),
-  };
-}
+type KeywordRecord = Prisma.QuestionKeywordGetPayload<{
+  select: typeof KEYWORD_SELECT;
+}>;
 
 function mapQuiz(quiz: QuizRecord) {
   return {
     id: quiz.id.toString(),
-    materialId: quiz.materialId.toString(),
-    material: quiz.material.title,
+    groupId: quiz.groupId,
     title: quiz.title,
     description: quiz.description ?? null,
     startTime: quiz.startTime?.toISOString() ?? null,
     endTime: quiz.endTime?.toISOString() ?? null,
     isPublished: quiz.isPublished,
+    levelNumber: quiz.levelNumber,
+    passThreshold: quiz.passThreshold,
     createdAt: quiz.createdAt.toISOString(),
     updatedAt: quiz.updatedAt.toISOString(),
-    levels: quiz.levels.map(mapLevel),
+    prerequisites: quiz.prerequisites.map((p) => ({
+      id: p.id,
+      quizId: p.quizId.toString(),
+      materialId: p.materialId.toString(),
+      materialTitle: p.material.title,
+    })),
   };
 }
 
 function mapQuestion(q: QuestionRecord) {
   return {
     id: q.id.toString(),
-    quizLevelId: q.quizLevelId.toString(),
-    quizLevelTitle: q.quizLevel.title,
-    quizId: q.quizLevel.quiz.id.toString(),
-    quizTitle: q.quizLevel.quiz.title,
+    quizId: q.quizId.toString(),
+    quizTitle: q.quiz.title,
     questionText: q.questionText,
     answerText: q.answerText,
     maxScore: q.maxScore,
     questionOrder: q.questionOrder,
     createdAt: q.createdAt.toISOString(),
     updatedAt: q.updatedAt.toISOString(),
+    keywords: q.keywords.map((k) => ({
+      id: k.id.toString(),
+      questionId: k.questionId.toString(),
+      blankOrder: k.blankOrder,
+      correctAnswer: k.correctAnswer,
+      createdAt: k.createdAt.toISOString(),
+      updatedAt: k.updatedAt.toISOString(),
+    })),
   };
 }
 
 function mapAttempt(attempt: AttemptRecord) {
   return {
     id: attempt.id.toString(),
-    quizLevelId: attempt.quizLevelId.toString(),
-    quizTitle: attempt.quizLevel.quiz.title,
+    quizId: attempt.quizId.toString(),
+    quizTitle: attempt.quiz.title,
     studentId: attempt.studentId,
     studentName: attempt.student.name,
     startedAt: attempt.startedAt.toISOString(),
@@ -198,9 +210,16 @@ function mapAnswer(answer: AnswerRecord) {
   };
 }
 
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
+function mapKeyword(keyword: KeywordRecord) {
+  return {
+    id: keyword.id.toString(),
+    questionId: keyword.questionId.toString(),
+    blankOrder: keyword.blankOrder,
+    correctAnswer: keyword.correctAnswer,
+    createdAt: keyword.createdAt.toISOString(),
+    updatedAt: keyword.updatedAt.toISOString(),
+  };
+}
 
 function assertValidTimeRange(
   startTime?: string | null,
@@ -216,22 +235,16 @@ function assertValidTimeRange(
 // ─────────────────────────────────────────────
 
 export abstract class QuizService {
-  static async getQuizzes(materialId: bigint, log: Logger) {
-    log.debug(
-      { materialId: materialId.toString() },
-      "Fetching quizzes for material",
-    );
+  static async getQuizzes(groupId: string, log: Logger) {
+    log.debug({ groupId }, "Fetching quizzes for group");
 
     const quizzes = await prisma.quiz.findMany({
-      where: { materialId },
+      where: { groupId },
       select: QUIZ_SELECT,
-      orderBy: { createdAt: "desc" },
+      orderBy: { levelNumber: "asc" },
     });
 
-    log.info(
-      { materialId: materialId.toString(), count: quizzes.length },
-      "Quizzes retrieved",
-    );
+    log.info({ groupId, count: quizzes.length }, "Quizzes retrieved");
     return quizzes.map(mapQuiz);
   }
 
@@ -248,24 +261,70 @@ export abstract class QuizService {
   }
 
   static async createQuiz(data: CreateQuizInput, log: Logger) {
-    const materialId = BigInt(data.materialId);
-    log.debug(
-      { materialId: materialId.toString(), title: data.title },
-      "Creating quiz",
-    );
+    log.debug({ groupId: data.groupId, title: data.title }, "Creating quiz");
 
     assertValidTimeRange(data.startTime, data.endTime);
 
-    const quiz = await prisma.quiz.create({
-      data: {
-        materialId,
-        title: data.title,
-        description: data.description,
-        startTime: data.startTime ? new Date(data.startTime) : null,
-        endTime: data.endTime ? new Date(data.endTime) : null,
-        isPublished: data.isPublished ?? false,
+    // Validate levelNumber unique per group
+    const dup = await prisma.quiz.findUnique({
+      where: {
+        groupId_levelNumber: {
+          groupId: data.groupId,
+          levelNumber: data.levelNumber,
+        },
       },
-      select: QUIZ_SELECT,
+    });
+    if (dup) {
+      throw new QuizAttemptValidationError(
+        "Quiz level number already exists in this group.",
+      );
+    }
+
+    const { prerequisiteMaterialIds, ...quizData } = data;
+
+    // Validate prerequisites belong to the group
+    if (prerequisiteMaterialIds && prerequisiteMaterialIds.length > 0) {
+      const mats = await prisma.material.findMany({
+        where: {
+          id: { in: prerequisiteMaterialIds.map(BigInt) },
+          groupId: data.groupId,
+        },
+      });
+      if (mats.length !== prerequisiteMaterialIds.length) {
+        throw new QuizAttemptValidationError(
+          "Some prerequisite materials are invalid or do not belong to the group.",
+        );
+      }
+    }
+
+    const quiz = await prisma.$transaction(async (tx) => {
+      const q = await tx.quiz.create({
+        data: {
+          groupId: quizData.groupId,
+          title: quizData.title,
+          description: quizData.description,
+          startTime: quizData.startTime ? new Date(quizData.startTime) : null,
+          endTime: quizData.endTime ? new Date(quizData.endTime) : null,
+          isPublished: quizData.isPublished ?? false,
+          levelNumber: quizData.levelNumber,
+          passThreshold: quizData.passThreshold,
+        },
+        select: QUIZ_SELECT,
+      });
+
+      if (prerequisiteMaterialIds && prerequisiteMaterialIds.length > 0) {
+        await tx.quizPrerequisite.createMany({
+          data: prerequisiteMaterialIds.map((matId) => ({
+            quizId: q.id,
+            materialId: BigInt(matId),
+          })),
+        });
+      }
+
+      return tx.quiz.findUniqueOrThrow({
+        where: { id: q.id },
+        select: QUIZ_SELECT,
+      });
     });
 
     log.info({ quizId: quiz.id.toString() }, "Quiz created");
@@ -275,25 +334,105 @@ export abstract class QuizService {
   static async updateQuiz(quizId: bigint, data: UpdateQuizInput, log: Logger) {
     log.debug({ quizId: quizId.toString() }, "Updating quiz");
 
-    const existing = await prisma.quiz.findUnique({
+    const existing = await prisma.quiz.findUniqueOrThrow({
       where: { id: quizId },
-      select: { startTime: true, endTime: true },
+      include: {
+        questions: {
+          include: { keywords: true },
+        },
+      },
     });
 
-    const resolvedStart = data.startTime ?? existing?.startTime?.toISOString();
-    const resolvedEnd = data.endTime ?? existing?.endTime?.toISOString();
+    const resolvedStart = data.startTime ?? existing.startTime?.toISOString();
+    const resolvedEnd = data.endTime ?? existing.endTime?.toISOString();
     assertValidTimeRange(resolvedStart, resolvedEnd);
 
-    const quiz = await prisma.quiz.update({
-      where: { id: quizId },
-      data: {
-        title: data.title,
-        description: data.description,
-        startTime: data.startTime ? new Date(data.startTime) : null,
-        endTime: data.endTime ? new Date(data.endTime) : null,
-        isPublished: data.isPublished,
-      },
-      select: QUIZ_SELECT,
+    const { prerequisiteMaterialIds, ...quizData } = data;
+
+    // Validate levelNumber unique if updated
+    if (
+      quizData.levelNumber !== undefined &&
+      quizData.levelNumber !== existing.levelNumber
+    ) {
+      const dup = await prisma.quiz.findUnique({
+        where: {
+          groupId_levelNumber: {
+            groupId: existing.groupId,
+            levelNumber: quizData.levelNumber,
+          },
+        },
+      });
+      if (dup) {
+        throw new QuizAttemptValidationError(
+          "Quiz level number already exists in this group.",
+        );
+      }
+    }
+
+    // Validate prerequisites belong to the group
+    if (prerequisiteMaterialIds && prerequisiteMaterialIds.length > 0) {
+      const mats = await prisma.material.findMany({
+        where: {
+          id: { in: prerequisiteMaterialIds.map(BigInt) },
+          groupId: existing.groupId,
+        },
+      });
+      if (mats.length !== prerequisiteMaterialIds.length) {
+        throw new QuizAttemptValidationError(
+          "Some prerequisite materials are invalid or do not belong to the group.",
+        );
+      }
+    }
+
+    // Publishing Rule: zero blanks in any question cannot be published
+    if (quizData.isPublished === true) {
+      if (existing.questions.length === 0) {
+        throw new QuizAttemptValidationError(
+          "A quiz with no questions cannot be published.",
+        );
+      }
+      for (const q of existing.questions) {
+        if (q.keywords.length === 0) {
+          throw new QuizAttemptValidationError(
+            "All questions must have at least one blank to be published.",
+          );
+        }
+      }
+    }
+
+    const quiz = await prisma.$transaction(async (tx) => {
+      const q = await tx.quiz.update({
+        where: { id: quizId },
+        data: {
+          title: quizData.title,
+          description: quizData.description,
+          startTime: quizData.startTime ? new Date(quizData.startTime) : null,
+          endTime: quizData.endTime ? new Date(quizData.endTime) : null,
+          isPublished: quizData.isPublished,
+          levelNumber: quizData.levelNumber,
+          passThreshold: quizData.passThreshold,
+        },
+        select: QUIZ_SELECT,
+      });
+
+      if (prerequisiteMaterialIds !== undefined) {
+        await tx.quizPrerequisite.deleteMany({
+          where: { quizId },
+        });
+        if (prerequisiteMaterialIds.length > 0) {
+          await tx.quizPrerequisite.createMany({
+            data: prerequisiteMaterialIds.map((matId) => ({
+              quizId,
+              materialId: BigInt(matId),
+            })),
+          });
+        }
+      }
+
+      return tx.quiz.findUniqueOrThrow({
+        where: { id: quizId },
+        select: QUIZ_SELECT,
+      });
     });
 
     log.info({ quizId: quiz.id.toString() }, "Quiz updated");
@@ -314,118 +453,39 @@ export abstract class QuizService {
 }
 
 // ─────────────────────────────────────────────
-// Quiz Level Service
-// ─────────────────────────────────────────────
-
-export abstract class QuizLevelService {
-  static async getQuizLevels(quizId: bigint, log: Logger) {
-    log.debug({ quizId: quizId.toString() }, "Fetching quiz levels");
-
-    const levels = await prisma.quizLevel.findMany({
-      where: { quizId },
-      select: LEVEL_SELECT,
-      orderBy: { levelOrder: "asc" },
-    });
-
-    log.info(
-      { quizId: quizId.toString(), count: levels.length },
-      "Quiz levels retrieved",
-    );
-    return levels.map(mapLevel);
-  }
-
-  static async getQuizLevel(levelId: bigint, log: Logger) {
-    log.debug({ levelId: levelId.toString() }, "Fetching quiz level");
-
-    const level = await prisma.quizLevel.findUniqueOrThrow({
-      where: { id: levelId },
-      select: LEVEL_SELECT,
-    });
-
-    log.info({ levelId: level.id.toString() }, "Quiz level retrieved");
-    return mapLevel(level);
-  }
-
-  static async createQuizLevel(data: CreateQuizLevelInput, log: Logger) {
-    const quizId = BigInt(data.quizId);
-    log.debug(
-      { quizId: quizId.toString(), title: data.title },
-      "Creating quiz level",
-    );
-
-    const level = await prisma.quizLevel.create({
-      data: { quizId, title: data.title, levelOrder: data.levelOrder },
-      select: LEVEL_SELECT,
-    });
-
-    log.info({ levelId: level.id.toString() }, "Quiz level created");
-    return mapLevel(level);
-  }
-
-  static async updateQuizLevel(
-    levelId: bigint,
-    data: UpdateQuizLevelInput,
-    log: Logger,
-  ) {
-    log.debug({ levelId: levelId.toString() }, "Updating quiz level");
-
-    const level = await prisma.quizLevel.update({
-      where: { id: levelId },
-      data: { title: data.title, levelOrder: data.levelOrder },
-      select: LEVEL_SELECT,
-    });
-
-    log.info({ levelId: level.id.toString() }, "Quiz level updated");
-    return mapLevel(level);
-  }
-
-  static async deleteQuizLevel(levelId: bigint, log: Logger) {
-    log.debug({ levelId: levelId.toString() }, "Deleting quiz level");
-
-    const level = await prisma.quizLevel.delete({
-      where: { id: levelId },
-      select: { id: true },
-    });
-
-    log.info({ levelId: level.id.toString() }, "Quiz level deleted");
-    return { id: level.id.toString() };
-  }
-}
-
-// ─────────────────────────────────────────────
 // Quiz Question Service
 // ─────────────────────────────────────────────
 
 export abstract class QuizQuestionService {
-  static async getQuestions(quizLevelId: bigint, log: Logger) {
-    log.debug({ quizLevelId: quizLevelId.toString() }, "Fetching questions");
+  static async getQuestions(quizId: bigint, log: Logger) {
+    log.debug({ quizId: quizId.toString() }, "Fetching questions");
 
     const questions = await prisma.quizQuestion.findMany({
-      where: { quizLevelId },
+      where: { quizId },
       select: QUESTION_SELECT,
       orderBy: { questionOrder: "asc" },
     });
 
     log.info(
-      { quizLevelId: quizLevelId.toString(), count: questions.length },
+      { quizId: quizId.toString(), count: questions.length },
       "Questions retrieved",
     );
     return questions.map(mapQuestion);
   }
 
   static async createQuestion(data: CreateQuizQuestionInput, log: Logger) {
-    const quizLevelId = BigInt(data.quizLevelId);
-    log.debug({ quizLevelId: quizLevelId.toString() }, "Creating question");
+    const quizId = BigInt(data.quizId);
+    log.debug({ quizId: quizId.toString() }, "Creating question");
 
     const { _max } = await prisma.quizQuestion.aggregate({
-      where: { quizLevelId },
+      where: { quizId },
       _max: { questionOrder: true },
     });
     const questionOrder = data.questionOrder ?? (_max.questionOrder ?? 0) + 1;
 
     const question = await prisma.quizQuestion.create({
       data: {
-        quizLevelId,
+        quizId,
         questionText: data.questionText,
         answerText: data.answerText,
         maxScore: data.maxScore ?? 100,
@@ -469,7 +529,7 @@ export abstract class QuizQuestionService {
     return prisma.$transaction(async (tx) => {
       const question = await tx.quizQuestion.findUnique({
         where: { id: questionId },
-        select: { quizLevelId: true, questionOrder: true },
+        select: { quizId: true, questionOrder: true },
       });
 
       if (!question) {
@@ -483,7 +543,7 @@ export abstract class QuizQuestionService {
 
       await tx.quizQuestion.updateMany({
         where: {
-          quizLevelId: question.quizLevelId,
+          quizId: question.quizId,
           questionOrder: { gt: question.questionOrder },
         },
         data: { questionOrder: { decrement: 1 } },
@@ -497,32 +557,147 @@ export abstract class QuizQuestionService {
     });
   }
 
-  static async getStudentQuestions(quizLevelId: bigint, log: Logger) {
+  static async getStudentQuestions(quizId: bigint, log: Logger) {
     log.debug(
-      { quizLevelId: quizLevelId.toString() },
+      { quizId: quizId.toString() },
       "Fetching limited question data for student quiz execution context",
     );
 
     const questions = await prisma.quizQuestion.findMany({
-      where: { quizLevelId },
+      where: { quizId },
       select: STUDENT_QUESTION_SELECT,
       orderBy: { questionOrder: "asc" },
     });
 
     log.info(
-      { quizLevelId: quizLevelId.toString(), count: questions.length },
+      { quizId: quizId.toString(), count: questions.length },
       "Student question data retrieved successfully",
     );
 
-    // Map fields matching your custom application mapper conventions safely
     return questions.map((q) => ({
       id: q.id.toString(),
-      quizLevelId: q.quizLevelId.toString(),
+      quizId: q.quizId.toString(),
       questionText: q.questionText,
       maxScore: q.maxScore,
       questionOrder: q.questionOrder,
       answerText: null,
     }));
+  }
+}
+
+// ─────────────────────────────────────────────
+// Question Keyword Service
+// ─────────────────────────────────────────────
+
+export abstract class QuestionKeywordService {
+  static async getKeywords(questionId: bigint, log: Logger) {
+    log.debug({ questionId: questionId.toString() }, "Fetching keywords");
+
+    const keywords = await prisma.questionKeyword.findMany({
+      where: { questionId },
+      select: KEYWORD_SELECT,
+      orderBy: { blankOrder: "asc" },
+    });
+
+    return keywords.map(mapKeyword);
+  }
+
+  static async createKeyword(data: CreateKeywordInput, log: Logger) {
+    const questionId = BigInt(data.questionId);
+    log.debug(
+      { questionId: questionId.toString(), blankOrder: data.blankOrder },
+      "Creating keyword",
+    );
+
+    const dup = await prisma.questionKeyword.findUnique({
+      where: {
+        questionId_blankOrder: {
+          questionId,
+          blankOrder: data.blankOrder,
+        },
+      },
+    });
+
+    if (dup) {
+      throw new QuizAttemptValidationError(
+        "Duplicate blank order for this question.",
+      );
+    }
+
+    const keyword = await prisma.questionKeyword.create({
+      data: {
+        questionId,
+        blankOrder: data.blankOrder,
+        correctAnswer: data.correctAnswer,
+      },
+      select: {
+        ...KEYWORD_SELECT,
+        question: {
+          select: {
+            quiz: {
+              select: { id: true, title: true },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      ...mapKeyword(keyword),
+      quizId: keyword.question.quiz.id.toString(),
+      quizTitle: keyword.question.quiz.title,
+    };
+  }
+
+  static async updateKeyword(
+    keywordId: bigint,
+    data: UpdateKeywordInput,
+    log: Logger,
+  ) {
+    log.debug({ keywordId: keywordId.toString() }, "Updating keyword");
+
+    if (data.blankOrder !== undefined) {
+      const keyword = await prisma.questionKeyword.findUnique({
+        where: { id: keywordId },
+      });
+      if (keyword && keyword.blankOrder !== data.blankOrder) {
+        const dup = await prisma.questionKeyword.findUnique({
+          where: {
+            questionId_blankOrder: {
+              questionId: keyword.questionId,
+              blankOrder: data.blankOrder,
+            },
+          },
+        });
+        if (dup) {
+          throw new QuizAttemptValidationError(
+            "Duplicate blank order for this question.",
+          );
+        }
+      }
+    }
+
+    const keyword = await prisma.questionKeyword.update({
+      where: { id: keywordId },
+      data: {
+        blankOrder: data.blankOrder,
+        correctAnswer: data.correctAnswer,
+      },
+      select: KEYWORD_SELECT,
+    });
+
+    return mapKeyword(keyword);
+  }
+
+  static async deleteKeyword(keywordId: bigint, log: Logger) {
+    log.debug({ keywordId: keywordId.toString() }, "Deleting keyword");
+
+    const keyword = await prisma.questionKeyword.delete({
+      where: { id: keywordId },
+      select: { id: true },
+    });
+
+    return { id: keyword.id.toString() };
   }
 }
 
@@ -566,71 +741,74 @@ export abstract class QuizAttemptService {
   static async getProgress(quizId: bigint, studentId: string, log: Logger) {
     log.debug(
       { quizId: quizId.toString(), studentId },
-      "Fetching direct level-by-level quiz progress",
+      "Fetching direct quiz progress",
     );
 
-    const levels = await prisma.quizLevel.findMany({
-      where: { quizId: quizId },
-      orderBy: { levelOrder: "asc" },
+    const quiz = await prisma.quiz.findUniqueOrThrow({
+      where: { id: quizId },
+      select: { groupId: true },
+    });
+
+    const quizzes = await prisma.quiz.findMany({
+      where: { groupId: quiz.groupId },
+      orderBy: { levelNumber: "asc" },
       select: {
         id: true,
         title: true,
-        levelOrder: true,
+        levelNumber: true,
         _count: { select: { questions: true } },
       },
     });
 
-    const levelIds = levels.map((l) => l.id);
+    const quizIds = quizzes.map((q) => q.id);
 
     const attempts = await prisma.quizAttempt.findMany({
       where: {
-        quizLevelId: { in: levelIds },
+        quizId: { in: quizIds },
         studentId: studentId,
       },
-      orderBy: { createdAt: "desc" }, // Latest attempts come first
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        quizLevelId: true,
+        quizId: true,
         submittedAt: true,
         createdAt: true,
       },
     });
 
-    const levelProgress = levels.map((level) => {
-      const latestLevelAttempt = attempts.find(
-        (a) => a.quizLevelId === level.id,
-      );
+    const progress = quizzes.map((q) => {
+      const latestAttempt = attempts.find((a) => a.quizId === q.id);
 
       let status = "NOT_STARTED";
       let currentAttemptId: string | null = null;
 
-      if (latestLevelAttempt) {
-        currentAttemptId = latestLevelAttempt.id.toString();
-        status = latestLevelAttempt.submittedAt ? "COMPLETED" : "IN_PROGRESS";
+      if (latestAttempt) {
+        currentAttemptId = latestAttempt.id.toString();
+        status = latestAttempt.submittedAt ? "COMPLETED" : "IN_PROGRESS";
       }
 
       return {
-        levelId: level.id.toString(),
-        title: level.title,
-        levelOrder: level.levelOrder,
+        quizId: q.id.toString(),
+        title: q.title,
+        levelNumber: q.levelNumber,
         status: status,
         currentAttemptId: currentAttemptId,
-        totalQuestions: level._count.questions,
+        totalQuestions: q._count.questions,
       };
     });
 
     log.info(
       {
         studentId,
-        quizId: quizId.toString(),
-        totalLevelsMapped: levels.length,
+        groupId: quiz.groupId,
+        totalQuizzesMapped: quizzes.length,
       },
-      "Granular level progress compiled successfully",
+      "Group quiz progress compiled successfully",
     );
 
     return {
-      quizId: quizId.toString(),
-      levels: levelProgress,
+      groupId: quiz.groupId,
+      progress,
       attemptHistory: attempts.map((a) => ({
         id: a.id.toString(),
         submittedAt: a.submittedAt?.toISOString() ?? null,
@@ -644,40 +822,93 @@ export abstract class QuizAttemptService {
     data: CreateQuizAttemptInput,
     log: Logger,
   ) {
-    const quizLevelId = BigInt(data.quizLevelId);
+    const quizId = BigInt(data.quizId);
     log.debug(
-      { quizLevelId: quizLevelId.toString(), studentId },
-      "Creating level attempt",
+      { quizId: quizId.toString(), studentId },
+      "Creating quiz attempt",
     );
 
-    // 🛑 DEFENSIVE GUARD: Prevent creating multiple active attempts for the same level
-    const existingActiveAttempt = await prisma.quizAttempt.findFirst({
+    // Fetch Quiz and prerequisites
+    const quiz = await prisma.quiz.findUniqueOrThrow({
+      where: { id: quizId },
+      include: {
+        prerequisites: {
+          include: {
+            material: true,
+          },
+        },
+      },
+    });
+
+    // 🛡️ Gate 1: Prerequisite Material Read check
+    for (const prereq of quiz.prerequisites) {
+      const readRecord = await prisma.materialRead.findUnique({
+        where: {
+          studentId_materialId: {
+            studentId,
+            materialId: prereq.materialId,
+          },
+        },
+      });
+
+      if (!readRecord || readRecord.materialVersion < prereq.material.version) {
+        throw new QuizAttemptValidationError(
+          `You must read prerequisite material "${prereq.material.title}" first.`,
+        );
+      }
+    }
+
+    // 🛡️ Gate 2: Level Prerequisite Check (Must pass levelNumber - 1)
+    if (quiz.levelNumber > 1) {
+      const prevQuiz = await prisma.quiz.findFirst({
+        where: {
+          groupId: quiz.groupId,
+          levelNumber: quiz.levelNumber - 1,
+        },
+      });
+
+      if (prevQuiz) {
+        const prevAttempts = await prisma.quizAttempt.findMany({
+          where: {
+            quizId: prevQuiz.id,
+            studentId,
+            submittedAt: { not: null },
+          },
+          orderBy: { score: "desc" },
+          take: 1,
+        });
+
+        const passed =
+          prevAttempts.length > 0 &&
+          prevAttempts[0].score !== null &&
+          prevAttempts[0].score >= prevQuiz.passThreshold;
+
+        if (!passed) {
+          throw new QuizAttemptValidationError(
+            `You must pass Quiz Level ${quiz.levelNumber - 1} before attempting this level.`,
+          );
+        }
+      }
+    }
+
+    // 🛑 DEFENSIVE GUARD: Prevent duplicate active attempts
+    const active = await prisma.quizAttempt.findFirst({
       where: {
-        studentId: studentId,
-        quizLevelId: quizLevelId,
+        studentId,
+        quizId,
         submittedAt: null,
       },
     });
 
-    if (existingActiveAttempt) {
-      log.warn(
-        {
-          studentId,
-          quizLevelId: quizLevelId.toString(),
-          attemptId: existingActiveAttempt.id.toString(),
-        },
-        "Blocked duplicate active attempt creation request",
-      );
-      // Throw your custom domain business exception to be handled gracefully by your .onError handler
+    if (active) {
       throw new QuizAttemptValidationError(
-        "You already have an active session for this level. Please submit it first.",
+        "You already have an active session for this quiz. Please submit it first.",
       );
     }
 
-    // Atomic execution creation using updated structural parameters
     const attempt = await prisma.quizAttempt.create({
       data: {
-        quizLevelId, // ✅ Updated reference mapping key
+        quizId,
         studentId,
       },
       select: ATTEMPT_SELECT,
@@ -685,7 +916,7 @@ export abstract class QuizAttemptService {
 
     log.info(
       { attemptId: attempt.id.toString() },
-      "Level attempt session instantiated successfully",
+      "Quiz attempt session instantiated successfully",
     );
     return mapAttempt(attempt);
   }
@@ -704,7 +935,7 @@ export abstract class QuizAttemptService {
         submittedAt: null,
       },
       include: {
-        quizLevel: {
+        quiz: {
           select: {
             _count: { select: { questions: true } },
           },
@@ -722,7 +953,7 @@ export abstract class QuizAttemptService {
       );
     }
 
-    const totalQuestions = attempt.quizLevel._count.questions;
+    const totalQuestions = attempt.quiz._count.questions;
 
     const correctAnswers = await prisma.quizAnswer.findMany({
       where: {
@@ -748,7 +979,7 @@ export abstract class QuizAttemptService {
         submittedAt: new Date(),
         score: finalScore,
       },
-      select: ATTEMPT_SELECT, // Uses your updated selection object
+      select: ATTEMPT_SELECT,
     });
 
     log.info(
@@ -760,38 +991,34 @@ export abstract class QuizAttemptService {
   }
 
   static async getAllAttemptsResults(
-    filters: { quizLevelId?: string; studentId?: string },
+    filters: { quizId?: string; studentId?: string },
     log: Logger,
   ) {
-    log.debug(
-      { filters },
-      "Fetching bulk quiz attempts results summary for lecturer view",
-    );
+    log.debug({ filters }, "Fetching bulk quiz attempts results summary");
 
-    // 1. Build dynamic query clauses based on requested filters
     const whereClause: Prisma.QuizAttemptWhereInput = {};
-    if (filters.quizLevelId) {
-      whereClause.quizLevelId = BigInt(filters.quizLevelId);
+    if (filters.quizId) {
+      whereClause.quizId = BigInt(filters.quizId);
     }
     if (filters.studentId) {
       whereClause.studentId = filters.studentId;
     }
 
-    // 2. Fetch all matching submitted attempts
     const attempts = await prisma.quizAttempt.findMany({
       where: whereClause,
       include: {
-        quizLevel: {
-          include: {
-            quiz: { select: { title: true } },
-            _count: { select: { questions: true } }, // Get total questions count
+        quiz: {
+          select: {
+            title: true,
+            levelNumber: true,
+            _count: { select: { questions: true } },
           },
         },
         student: {
-          select: { name: true, email: true }, // Include student profiles
+          select: { name: true, email: true },
         },
       },
-      orderBy: { submittedAt: "desc" }, // Most recent submissions first
+      orderBy: { submittedAt: "desc" },
     });
 
     log.info(
@@ -799,49 +1026,43 @@ export abstract class QuizAttemptService {
       "Bulk quiz attempts results gathered successfully",
     );
 
-    // 3. Map out a shallow high-level overview suitable for table lists
     return attempts.map((attempt) => ({
       attemptId: attempt.id.toString(),
-      quizLevelId: attempt.quizLevelId.toString(),
-      quizTitle: attempt.quizLevel.quiz.title,
-      levelTitle: attempt.quizLevel.title,
+      quizId: attempt.quizId.toString(),
+      quizTitle: attempt.quiz.title,
+      levelNumber: attempt.quiz.levelNumber,
       studentId: attempt.studentId,
       studentName: attempt.student.name,
       studentEmail: attempt.student.email,
       score: attempt.score,
-      totalQuestions: attempt.quizLevel._count.questions,
+      totalQuestions: attempt.quiz._count.questions,
       startedAt: attempt.startedAt.toISOString(),
-      submittedAt: attempt.submittedAt?.toISOString() ?? null, // Null if in-progress
+      submittedAt: attempt.submittedAt?.toISOString() ?? null,
     }));
   }
 
   static async getAttemptResults(
     attemptId: string,
-    ctx: { userId: string; userRole: string }, // 🔄 Replaced studentId string with a structured session context
+    ctx: { userId: string; userRole: string },
     log: Logger,
   ) {
     const id = BigInt(attemptId);
     log.debug(
       { attemptId, user: ctx.userId, role: ctx.userRole },
-      "Fetching detailed quiz attempt results with role-based visibility",
+      "Fetching detailed quiz attempt results",
     );
 
-    // 1. Determine access privileges based on security context
     const isPrivilegedRole =
       ctx.userRole === "SuperAdmin" || ctx.userRole === "Dosen";
 
-    // 2. Fetch Attempt with conditional ownership enforcement
     const attempt = await prisma.quizAttempt.findFirst({
       where: {
         id: id,
-        // 🛡️ Security Guard: If they are NOT an admin/dosen, they can ONLY see their own records.
-        // If they ARE an admin/dosen, this condition is omitted entirely.
         ...(isPrivilegedRole ? {} : { studentId: ctx.userId }),
       },
       include: {
-        quizLevel: {
+        quiz: {
           include: {
-            quiz: { select: { title: true } },
             questions: { orderBy: { questionOrder: "asc" } },
           },
         },
@@ -852,26 +1073,20 @@ export abstract class QuizAttemptService {
     if (!attempt) {
       log.warn(
         { attemptId, userId: ctx.userId, role: ctx.userRole },
-        "Result fetch blocked: Attempt not found, or user lacks clearance",
+        "Result fetch blocked",
       );
       throw new QuizAttemptContextException(
         "Attempt not found or you do not have permission to view it.",
       );
     }
 
-    // 3. Guard: Prevent viewing results if the attempt is still in progress
     if (!attempt.submittedAt) {
-      log.warn(
-        { attemptId },
-        "Result fetch blocked: Attempt is not yet submitted",
-      );
       throw new QuizAttemptValidationError(
         "Cannot view detailed results for an unsubmitted attempt. Please submit the quiz first.",
       );
     }
 
-    // 4. Map every question against the user's answers
-    const details = attempt.quizLevel.questions.map((question) => {
+    const details = attempt.quiz.questions.map((question) => {
       const userAnswerRecord = attempt.answers.find(
         (a) => a.quizQuestionId === question.id,
       );
@@ -897,9 +1112,9 @@ export abstract class QuizAttemptService {
 
     return {
       attemptId: attempt.id.toString(),
-      quizLevelId: attempt.quizLevelId.toString(),
-      quizTitle: attempt.quizLevel.quiz.title,
-      levelTitle: attempt.quizLevel.title,
+      quizId: attempt.quizId.toString(),
+      quizTitle: attempt.quiz.title,
+      levelNumber: attempt.quiz.levelNumber,
       score: attempt.score,
       startedAt: attempt.startedAt.toISOString(),
       submittedAt: attempt.submittedAt.toISOString(),
@@ -965,17 +1180,17 @@ export abstract class QuizAnswerService {
     log: Logger,
   ) {
     const quizAttemptId = BigInt(data.quizAttemptId);
-    const quizLevelId = BigInt(data.quizLevelId);
+    const quizId = BigInt(data.quizId);
 
     log.debug(
-      { quizAttemptId: data.quizAttemptId, quizLevelId: data.quizLevelId },
+      { quizAttemptId: data.quizAttemptId, quizId: data.quizId },
       "Processing bulk quiz answers submission",
     );
 
     const activeAttempt = await prisma.quizAttempt.findFirst({
       where: {
         id: quizAttemptId,
-        quizLevelId: quizLevelId,
+        quizId: quizId,
         studentId: studentId,
         submittedAt: null,
       },
@@ -988,7 +1203,7 @@ export abstract class QuizAnswerService {
     }
 
     const validQuestions = await prisma.quizQuestion.findMany({
-      where: { quizLevelId: quizLevelId },
+      where: { quizId: quizId },
       select: { id: true, answerText: true },
     });
 
@@ -1002,7 +1217,7 @@ export abstract class QuizAnswerService {
 
       if (correctAnswerText === undefined) {
         throw new QuizAttemptValidationError(
-          `Question ID ${incoming.quizQuestionId} does not belong to the requested quiz level.`,
+          `Question ID ${incoming.quizQuestionId} does not belong to the requested quiz.`,
         );
       }
 
@@ -1078,27 +1293,12 @@ export abstract class QuizAnswerService {
 // Shared utility
 // ─────────────────────────────────────────────
 function normalizeAnswer(text: string): string {
-  return (
-    text
-      // 1. Convert structural opening AND closing tags (including lists) into spaces
-      //    so adjacent block inline values never smash together.
-      .replace(/<\/?(br|p|div|tr|td|li|ul|ol|h[1-6])\/?>/gi, " ")
-
-      // 2. Strip out any remaining inline/formatting tags safely (like <strong>, <a>, etc.)
-      .replace(/<\/?[^>]+(>|$)/g, "")
-
-      // 3. Convert HTML space entities back to true whitespace tokens
-      .replace(/&nbsp;/g, " ")
-
-      // 4. Collapse multi-spaces, tabs, and actual line breaks (\n) into a single clean space
-      .replace(/\s+/g, " ")
-
-      // 5. 🚀 NEW: Remove extra spaces before common punctuation marks (.,!?;;)
-      //    This turns "tag ." into "tag." and "word ," into "word,"
-      .replace(/\s+([.,!?;\s])/g, "$1")
-
-      // 6. Clean up outer margins and unify lowercase casing properties
-      .trim()
-      .toLowerCase()
-  );
+  return text
+    .replace(/<\/?(br|p|div|tr|td|li|ul|ol|h[1-6])\/?>/gi, " ")
+    .replace(/<\/?[^>]+(>|$)/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([.,!?;\s])/g, "$1")
+    .trim()
+    .toLowerCase();
 }

@@ -5,36 +5,25 @@ import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
-  createTestMaterial,
   createTestRoleWithPermissions,
   randomIp,
 } from "../test_utils";
 
-// =========================================
-// Helpers
-// =========================================
-
-async function createMockQuizWithLevel(userId: string) {
-  const material = await createTestMaterial(userId);
+async function createMockQuiz(userId: string, levelNumber = 1) {
+  const group = await prisma.group.create({
+    data: { name: "Default Group", description: "Default group for tests" },
+  });
 
   const quiz = await prisma.quiz.create({
     data: {
-      materialId: material.id,
-      title: "Attempt Quiz",
+      groupId: group.id,
+      title: `Attempt Quiz L${levelNumber}`,
       isPublished: true,
+      levelNumber,
     },
   });
 
-  // ✅ Create an underlying level since attempts now target levels directly
-  const level = await prisma.quizLevel.create({
-    data: {
-      quizId: quiz.id,
-      title: "Level 1",
-      levelOrder: 1,
-    },
-  });
-
-  return { quiz, level };
+  return { quiz, group };
 }
 
 describe("Quiz Attempt Test Suite", () => {
@@ -50,7 +39,7 @@ describe("Quiz Attempt Test Suite", () => {
   // POST /quizzes/attempts
   // =========================================
   describe("POST /quizzes/attempts", () => {
-    it("should create quiz attempt targeting a quiz level", async () => {
+    it("should create quiz attempt targeting a quiz", async () => {
       const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
         {
           featureName: "quiz_management",
@@ -62,7 +51,7 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const res = await app.handle(
         new Request("http://localhost/quizzes/attempts", {
@@ -73,18 +62,18 @@ describe("Quiz Attempt Test Suite", () => {
             "x-forwarded-for": randomIp(),
           },
           body: JSON.stringify({
-            quizLevelId: level.id.toString(), // ✅ Updated property name
+            quizId: quiz.id.toString(),
           }),
         }),
       );
 
       const json = await res.json();
       expect(res.status).toBe(201);
-      expect(json.data.quizLevelId).toBe(level.id.toString()); // ✅ Updated property name
+      expect(json.data.quizId).toBe(quiz.id.toString());
       expect(json.data.studentId).toBe(user.id);
     });
 
-    it("should reject duplicate active attempt per level", async () => {
+    it("should reject duplicate active attempt per quiz", async () => {
       const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
         {
           featureName: "quiz_management",
@@ -96,12 +85,11 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
-      // Create an initial active open session
       await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
           submittedAt: null,
         },
@@ -116,12 +104,96 @@ describe("Quiz Attempt Test Suite", () => {
             "x-forwarded-for": randomIp(),
           },
           body: JSON.stringify({
-            quizLevelId: level.id.toString(),
+            quizId: quiz.id.toString(),
           }),
         }),
       );
 
-      expect(res.status).toBe(400); // Handled cleanly by custom validation exceptions
+      expect(res.status).toBe(400);
+    });
+
+    it("should reject attempt if material prerequisites are not read", async () => {
+      const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
+        { featureName: "quiz_management", action: "create" },
+      ]);
+      const { user, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+      const { quiz, group } = await createMockQuiz(user.id);
+
+      const material = await prisma.material.create({
+        data: {
+          groupId: group.id,
+          lecturerId: user.id,
+          title: "Prereq Mat",
+          materialType: "text",
+          version: 1,
+        },
+      });
+
+      await prisma.quizPrerequisite.create({
+        data: {
+          quizId: quiz.id,
+          materialId: material.id,
+        },
+      });
+
+      // No read record -> should fail
+      const res = await app.handle(
+        new Request("http://localhost/quizzes/attempts", {
+          method: "POST",
+          headers: {
+            ...authHeaders,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ quizId: quiz.id.toString() }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.message).toContain("You must read prerequisite material");
+    });
+
+    it("should reject attempt if previous level quiz is not passed", async () => {
+      const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
+        { featureName: "quiz_management", action: "create" },
+      ]);
+      const { user, authHeaders } = await createAuthenticatedUser({
+        roleId: role.id,
+      });
+
+      const group = await prisma.group.create({ data: { name: "G1" } });
+      const quiz1 = await prisma.quiz.create({
+        data: {
+          groupId: group.id,
+          title: "L1",
+          levelNumber: 1,
+          passThreshold: 70,
+        },
+      });
+      const quiz2 = await prisma.quiz.create({
+        data: {
+          groupId: group.id,
+          title: "L2",
+          levelNumber: 2,
+          passThreshold: 70,
+        },
+      });
+
+      // No attempt for L1 -> should fail
+      const res = await app.handle(
+        new Request("http://localhost/quizzes/attempts", {
+          method: "POST",
+          headers: {
+            ...authHeaders,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ quizId: quiz2.id.toString() }),
+        }),
+      );
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.message).toContain("You must pass Quiz Level 1");
     });
 
     it("should reject without permission", async () => {
@@ -136,7 +208,7 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const res = await app.handle(
         new Request("http://localhost/quizzes/attempts", {
@@ -147,7 +219,7 @@ describe("Quiz Attempt Test Suite", () => {
             "x-forwarded-for": randomIp(),
           },
           body: JSON.stringify({
-            quizLevelId: level.id.toString(),
+            quizId: quiz.id.toString(),
           }),
         }),
       );
@@ -172,33 +244,29 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
         },
       });
 
       const res = await app.handle(
-        new Request(
-          `http://localhost/quizzes/attempts?quizLevelId=${level.id}`,
-          {
-            // ✅ Updated query key
-            method: "GET",
-            headers: {
-              ...authHeaders,
-              "x-forwarded-for": randomIp(),
-            },
+        new Request(`http://localhost/quizzes/attempts?quizId=${quiz.id}`, {
+          method: "GET",
+          headers: {
+            ...authHeaders,
+            "x-forwarded-for": randomIp(),
           },
-        ),
+        }),
       );
 
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.data).toHaveLength(1);
-      expect(json.data[0].quizLevelId).toBe(level.id.toString());
+      expect(json.data[0].quizId).toBe(quiz.id.toString());
     });
   });
 
@@ -218,11 +286,11 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
         },
       });
@@ -240,7 +308,7 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.data.id).toBe(attempt.id.toString());
-      expect(json.data.quizLevelId).toBe(level.id.toString());
+      expect(json.data.quizId).toBe(quiz.id.toString());
     });
   });
 
@@ -260,11 +328,11 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
         },
       });
@@ -289,7 +357,7 @@ describe("Quiz Attempt Test Suite", () => {
   // GET /quizzes/attempts/status/me
   // =========================================
   describe("GET /quizzes/attempts/status/me", () => {
-    it("should return levels with NOT_STARTED status when no answers or attempts exist", async () => {
+    it("should return quizzes with NOT_STARTED status when no answers or attempts exist", async () => {
       const role = await createTestRoleWithPermissions("StatusReaderRole", [
         {
           featureName: "quiz_management",
@@ -301,11 +369,11 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { quiz, level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       await prisma.quizQuestion.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           questionText: "Sample Question?",
           answerText: "Answer",
           maxScore: 10,
@@ -329,12 +397,12 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
 
-      expect(json.data.quizId).toBe(quiz.id.toString());
-      expect(json.data.levels).toHaveLength(1);
-      expect(json.data.levels[0].levelId).toBe(level.id.toString());
-      expect(json.data.levels[0].status).toBe("NOT_STARTED");
-      expect(json.data.levels[0].currentAttemptId).toBeNull();
-      expect(json.data.levels[0].totalQuestions).toBe(1);
+      expect(json.data.groupId).toBe(quiz.groupId);
+      expect(json.data.progress).toHaveLength(1);
+      expect(json.data.progress[0].quizId).toBe(quiz.id.toString());
+      expect(json.data.progress[0].status).toBe("NOT_STARTED");
+      expect(json.data.progress[0].currentAttemptId).toBeNull();
+      expect(json.data.progress[0].totalQuestions).toBe(1);
     });
 
     it("should return IN_PROGRESS status when an unsubmitted attempt exists", async () => {
@@ -345,12 +413,11 @@ describe("Quiz Attempt Test Suite", () => {
       const { user, authHeaders } = await createAuthenticatedUser({
         roleId: role.id,
       });
-      const { quiz, level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
-      // 1. Create a question for this level
       const question = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           questionText: "What is Bun?",
           answerText: "A fast runtime",
           maxScore: 10,
@@ -358,16 +425,14 @@ describe("Quiz Attempt Test Suite", () => {
         },
       });
 
-      // 2. Create the open attempt
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
           submittedAt: null,
         },
       });
 
-      // 3. ✅ SEED THE MOCK ANSWER to mark it as started!
       await prisma.quizAnswer.create({
         data: {
           quizAttemptId: attempt.id,
@@ -393,8 +458,10 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
 
-      expect(json.data.levels[0].status).toBe("IN_PROGRESS");
-      expect(json.data.levels[0].currentAttemptId).toBe(attempt.id.toString());
+      expect(json.data.progress[0].status).toBe("IN_PROGRESS");
+      expect(json.data.progress[0].currentAttemptId).toBe(
+        attempt.id.toString(),
+      );
       expect(json.data.attemptHistory).toHaveLength(1);
     });
 
@@ -410,13 +477,13 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { quiz, level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
-          submittedAt: new Date(), // Finalized closure state
+          submittedAt: new Date(),
         },
       });
 
@@ -436,8 +503,10 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
 
-      expect(json.data.levels[0].status).toBe("COMPLETED");
-      expect(json.data.levels[0].currentAttemptId).toBe(attempt.id.toString());
+      expect(json.data.progress[0].status).toBe("COMPLETED");
+      expect(json.data.progress[0].currentAttemptId).toBe(
+        attempt.id.toString(),
+      );
       expect(json.data.attemptHistory).toHaveLength(1);
     });
   });
@@ -454,12 +523,11 @@ describe("Quiz Attempt Test Suite", () => {
       const { user, authHeaders } = await createAuthenticatedUser({
         roleId: role.id,
       });
-      const { quiz, level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
-      // Create two questions for the level
       const q1 = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           questionText: "What is Bun?",
           answerText: "A JS runtime",
           maxScore: 50,
@@ -469,7 +537,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       const q2 = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           questionText: "Is Prisma an ORM?",
           answerText: "Yes",
           maxScore: 50,
@@ -477,17 +545,15 @@ describe("Quiz Attempt Test Suite", () => {
         },
       });
 
-      // Create a finalized attempt
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
           submittedAt: new Date(),
-          score: 50, // They got 1 out of 2 right
+          score: 50,
         },
       });
 
-      // Answer Q1 correctly, but SKIP Q2
       await prisma.quizAnswer.create({
         data: {
           quizAttemptId: attempt.id,
@@ -510,19 +576,16 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
 
-      // Verify overarching data
       expect(json.data.attemptId).toBe(attempt.id.toString());
       expect(json.data.score).toBe(50);
       expect(json.data.details).toHaveLength(2);
 
-      // Verify Question 1 (Answered Correctly)
       const parsedQ1 = json.data.details.find(
         (d: any) => d.questionId === q1.id.toString(),
       );
       expect(parsedQ1.isCorrect).toBe(true);
       expect(parsedQ1.userAnswer).toBe("A JS runtime");
 
-      // Verify Question 2 (Skipped - Handled Gracefully)
       const parsedQ2 = json.data.details.find(
         (d: any) => d.questionId === q2.id.toString(),
       );
@@ -539,13 +602,13 @@ describe("Quiz Attempt Test Suite", () => {
       const { user, authHeaders } = await createAuthenticatedUser({
         roleId: role.id,
       });
-      const { level } = await createMockQuizWithLevel(user.id);
+      const { quiz } = await createMockQuiz(user.id);
 
       const attempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: user.id,
-          submittedAt: null, // Still active
+          submittedAt: null,
         },
       });
 
@@ -559,7 +622,7 @@ describe("Quiz Attempt Test Suite", () => {
         }),
       );
 
-      expect(res.status).toBe(400); // Throws QuizAttemptValidationError
+      expect(res.status).toBe(400);
     });
   });
 
@@ -577,19 +640,18 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { quiz, level } = await createMockQuizWithLevel(lecturer.id);
+      const { quiz } = await createMockQuiz(lecturer.id);
 
-      // Seed 2 questions into the level so totalQuestions count aggregates properly
       await prisma.quizQuestion.createMany({
         data: [
           {
-            quizLevelId: level.id,
+            quizId: quiz.id,
             questionText: "Q1",
             answerText: "A1",
             questionOrder: 1,
           },
           {
-            quizLevelId: level.id,
+            quizId: quiz.id,
             questionText: "Q2",
             answerText: "A2",
             questionOrder: 2,
@@ -597,7 +659,6 @@ describe("Quiz Attempt Test Suite", () => {
         ],
       });
 
-      // Create a second student account context to mock multi-student class submissions
       const studentRole = await createTestRoleWithPermissions(
         "StudentDefaultRole",
         [],
@@ -608,27 +669,24 @@ describe("Quiz Attempt Test Suite", () => {
         email: "newStudent@test.com",
       });
 
-      // Seed submission record for Student 1
       const attempt1 = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
-          studentId: lecturer.id, // Using the first authenticated user context as student 1
+          quizId: quiz.id,
+          studentId: lecturer.id,
           submittedAt: new Date(),
           score: 100,
         },
       });
 
-      // Seed submission record for Student 2
       const attempt2 = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: level.id,
+          quizId: quiz.id,
           studentId: student2.id,
           submittedAt: new Date(),
           score: 50,
         },
       });
 
-      // Request without query parameters to view the unfiltered global list
       const res = await app.handle(
         new Request("http://localhost/quizzes/attempts/results", {
           method: "GET",
@@ -642,17 +700,15 @@ describe("Quiz Attempt Test Suite", () => {
       const json = await res.json();
       expect(res.status).toBe(200);
 
-      // Expect both submissions to be loaded into the collection
       expect(json.data).toBeInstanceOf(Array);
       expect(json.data.length).toBeGreaterThanOrEqual(2);
 
-      // Validate the structure matches the schema contracts exactly
       const record1 = json.data.find(
         (item: any) => item.attemptId === attempt1.id.toString(),
       );
       expect(record1).toBeDefined();
       expect(record1.quizTitle).toBe(quiz.title);
-      expect(record1.levelTitle).toBe(level.title);
+      expect(record1.levelNumber).toBe(quiz.levelNumber);
       expect(record1.score).toBe(100);
       expect(record1.totalQuestions).toBe(2);
       expect(record1.studentName).toBeDefined();
@@ -669,35 +725,30 @@ describe("Quiz Attempt Test Suite", () => {
         roleId: role.id,
       });
 
-      const { level: targetLevel } = await createMockQuizWithLevel(lecturer.id);
-      const { level: isolatedLevel } = await createMockQuizWithLevel(
-        lecturer.id,
-      );
+      const { quiz: targetQuiz } = await createMockQuiz(lecturer.id, 1);
+      const { quiz: isolatedQuiz } = await createMockQuiz(lecturer.id, 2);
 
-      // Seed submission on target level
       const targetAttempt = await prisma.quizAttempt.create({
         data: {
-          quizLevelId: targetLevel.id,
+          quizId: targetQuiz.id,
           studentId: lecturer.id,
           submittedAt: new Date(),
           score: 80,
         },
       });
 
-      // Seed alternative noise submission on the secondary level
       await prisma.quizAttempt.create({
         data: {
-          quizLevelId: isolatedLevel.id,
+          quizId: isolatedQuiz.id,
           studentId: lecturer.id,
           submittedAt: new Date(),
           score: 90,
         },
       });
 
-      // Execute request filtering strictly by quizLevelId
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/attempts/results?quizLevelId=${targetLevel.id}`,
+          `http://localhost/quizzes/attempts/results?quizId=${targetQuiz.id}`,
           {
             method: "GET",
             headers: {
@@ -711,9 +762,8 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
 
-      // The noise row should be filtered out from the response collection array
       const matches = json.data.filter(
-        (item: any) => item.quizLevelId === targetLevel.id.toString(),
+        (item: any) => item.quizId === targetQuiz.id.toString(),
       );
       expect(json.data).toHaveLength(matches.length);
       expect(json.data[0].attemptId).toBe(targetAttempt.id.toString());

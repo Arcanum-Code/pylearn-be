@@ -10,16 +10,12 @@ import {
 
 describe("Quiz Questions API", () => {
   let authHeaders: any;
-  let materialId: string;
   let quizId: string;
-  let quizLevelId: string;
 
   beforeEach(async () => {
     await resetDatabase();
 
     const role = await createTestRoleWithPermissions("Admin", [
-      { featureName: "material_management", action: "create" },
-      { featureName: "material_management", action: "read" },
       { featureName: "quiz_management", action: "create" },
       { featureName: "quiz_management", action: "read" },
       { featureName: "quiz_management", action: "update" },
@@ -31,23 +27,7 @@ describe("Quiz Questions API", () => {
 
     const group = await prisma.group.create({ data: { name: "Test Group" } });
 
-    // 1. Create base Material
-    const mResponse = await app.handle(
-      new Request("http://localhost/materials", {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          lecturerId: auth.user.id,
-          groupId: group.id,
-          title: "Test Material",
-          materialType: "text",
-        }),
-      }),
-    );
-    const mBody = await mResponse.json();
-    materialId = mBody.data.id;
-
-    // 2. Create base Quiz directly under Material
+    // Create base Quiz directly under Group
     const qResponse = await app.handle(
       new Request("http://localhost/quizzes", {
         method: "POST",
@@ -56,31 +36,14 @@ describe("Quiz Questions API", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          materialId: materialId,
+          groupId: group.id,
           title: "Quiz 1",
+          levelNumber: 1,
         }),
       }),
     );
     const qBody = await qResponse.json();
     quizId = qBody.data.id;
-
-    // 3. Create Quiz Level under Quiz
-    const qlResponse = await app.handle(
-      new Request("http://localhost/quizzes/levels", {
-        method: "POST",
-        headers: {
-          ...authHeaders,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          quizId: quizId,
-          title: "Level 1",
-          levelOrder: 1,
-        }),
-      }),
-    );
-    const qlBody = await qlResponse.json();
-    quizLevelId = qlBody.data.id;
   });
 
   afterAll(async () => {
@@ -91,7 +54,7 @@ describe("Quiz Questions API", () => {
   // POST /quizzes/questions (Create)
   // =========================================================================
   describe("POST /quizzes/questions", () => {
-    it("should create questions with sequential order within a level", async () => {
+    it("should create questions with sequential order within a quiz", async () => {
       // First question
       const res1 = await app.handle(
         new Request("http://localhost/quizzes/questions", {
@@ -102,7 +65,7 @@ describe("Quiz Questions API", () => {
             "x-forwarded-for": randomIp(),
           },
           body: JSON.stringify({
-            quizLevelId: quizLevelId, // Updated tracking property
+            quizId: quizId,
             questionText: "Question 1",
             answerText: "Answer 1",
             maxScore: 50,
@@ -113,8 +76,8 @@ describe("Quiz Questions API", () => {
       expect(res1.status).toBe(201);
       const body1 = await res1.json();
       expect(body1.data.questionOrder).toBe(1);
-      expect(body1.data.quizLevelId).toBe(quizLevelId);
-      expect(body1.data.quizLevelTitle).toBe("Level 1");
+      expect(body1.data.quizId).toBe(quizId);
+      expect(body1.data.quizTitle).toBe("Quiz 1");
 
       // Second question
       const res2 = await app.handle(
@@ -126,7 +89,7 @@ describe("Quiz Questions API", () => {
             "x-forwarded-for": randomIp(),
           },
           body: JSON.stringify({
-            quizLevelId: quizLevelId, // Updated tracking property
+            quizId: quizId,
             questionText: "Question 2",
             answerText: "Answer 2",
             questionOrder: 2,
@@ -136,7 +99,7 @@ describe("Quiz Questions API", () => {
       expect(res2.status).toBe(201);
       const body2 = await res2.json();
       expect(body2.data.questionOrder).toBe(2);
-      expect(body2.data.maxScore).toBe(100); // Default property check
+      expect(body2.data.maxScore).toBe(100);
     });
   });
 
@@ -144,10 +107,10 @@ describe("Quiz Questions API", () => {
   // GET /quizzes/questions (List by Query Param)
   // =========================================================================
   describe("GET /quizzes/questions", () => {
-    it("should list questions with quiz level and quiz info", async () => {
+    it("should list questions with quiz info", async () => {
       await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId), // Updated database relation
+          quizId: BigInt(quizId),
           questionText: "Question 1",
           answerText: "Answer 1",
           questionOrder: 1,
@@ -155,30 +118,25 @@ describe("Quiz Questions API", () => {
       });
 
       const res = await app.handle(
-        new Request(
-          `http://localhost/quizzes/questions?quizLevelId=${quizLevelId}`,
-          {
-            // Updated query string parameter
-            method: "GET",
-            headers: authHeaders,
-          },
-        ),
+        new Request(`http://localhost/quizzes/questions?quizId=${quizId}`, {
+          method: "GET",
+          headers: authHeaders,
+        }),
       );
 
       const body = await res.json();
       expect(res.status).toBe(200);
       expect(body.data.length).toBe(1);
-      expect(body.data[0].quizLevelId).toBe(quizLevelId);
-      expect(body.data[0].quizLevelTitle).toBe("Level 1");
+      expect(body.data[0].quizId).toBe(quizId);
       expect(body.data[0].quizTitle).toBe("Quiz 1");
     });
   });
 
-  describe.only("GET /quizzes/questions/attempt", () => {
-    it("should return questions for a level but strictly exclude answerText", async () => {
+  describe("GET /quizzes/questions/attempt", () => {
+    it("should return questions for a quiz but strictly exclude answerText", async () => {
       await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId),
+          quizId: BigInt(quizId),
           questionText: "Secret Question?",
           answerText: "Highly Classified Answer Key",
           maxScore: 100,
@@ -188,7 +146,7 @@ describe("Quiz Questions API", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/questions/attempt?quizLevelId=${quizLevelId}`,
+          `http://localhost/quizzes/questions/attempt?quizId=${quizId}`,
           {
             method: "GET",
             headers: authHeaders,
@@ -202,7 +160,6 @@ describe("Quiz Questions API", () => {
       expect(body.data[0].questionText).toBe("Secret Question?");
       expect(body.data[0].maxScore).toBe(100);
       expect(body.data[0].questionOrder).toBe(1);
-
       expect(body.data[0].answerText).toBeUndefined();
     });
 
@@ -219,7 +176,7 @@ describe("Quiz Questions API", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/questions/attempt?quizLevelId=${quizLevelId}`,
+          `http://localhost/quizzes/questions/attempt?quizId=${quizId}`,
           {
             method: "GET",
             headers: unauthorizedUser.authHeaders,
@@ -238,7 +195,7 @@ describe("Quiz Questions API", () => {
     it("should update question text and max score", async () => {
       const q = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId), // Updated database relation
+          quizId: BigInt(quizId),
           questionText: "Original Text",
           answerText: "Original Answer",
           maxScore: 10,
@@ -277,7 +234,7 @@ describe("Quiz Questions API", () => {
     it("should allow deletion if not the last question and shift orders down", async () => {
       const q1 = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId),
+          quizId: BigInt(quizId),
           questionText: "Q1",
           answerText: "A1",
           questionOrder: 1,
@@ -285,7 +242,7 @@ describe("Quiz Questions API", () => {
       });
       const q2 = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId),
+          quizId: BigInt(quizId),
           questionText: "Q2",
           answerText: "A2",
           questionOrder: 2,
@@ -301,7 +258,6 @@ describe("Quiz Questions API", () => {
 
       expect(res.status).toBe(200);
 
-      // Verify cascading reorder shift happened inside this level group
       const secondaryQuestion = await prisma.quizQuestion.findUnique({
         where: { id: q2.id },
       });
@@ -311,7 +267,7 @@ describe("Quiz Questions API", () => {
     it("should allow deletion of the last question", async () => {
       const q1 = await prisma.quizQuestion.create({
         data: {
-          quizLevelId: BigInt(quizLevelId),
+          quizId: BigInt(quizId),
           questionText: "Q1",
           answerText: "A1",
           questionOrder: 1,
@@ -327,7 +283,7 @@ describe("Quiz Questions API", () => {
 
       expect(res.status).toBe(200);
       const count = await prisma.quizQuestion.count({
-        where: { quizLevelId: BigInt(quizLevelId) },
+        where: { quizId: BigInt(quizId) },
       });
       expect(count).toBe(0);
     });

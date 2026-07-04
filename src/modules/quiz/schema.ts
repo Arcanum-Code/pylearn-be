@@ -3,24 +3,23 @@ import { z } from "zod";
 // ==========================================
 // Quiz Schema
 // ==========================================
-export const GetQuizLevelsQuerySchema = z.object({
-  quizId: z.string().min(1, "Quiz ID is required").describe("Required Quiz ID"),
-});
-
 export const GetQuizzesQuerySchema = z.object({
-  materialId: z
+  groupId: z
     .string()
-    .min(1, "Material ID is required")
-    .describe("Required Material ID"),
+    .min(1, "Group ID is required")
+    .describe("Required Group ID"),
 });
 
 export const CreateQuizSchema = z.object({
-  materialId: z.string().min(1, "Material ID is required"),
+  groupId: z.string().min(1, "Group ID is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
   isPublished: z.boolean().optional(),
+  levelNumber: z.number().int().positive("Level number must be positive"),
+  passThreshold: z.number().min(0).max(100).default(70.0),
+  prerequisiteMaterialIds: z.array(z.string()).optional(),
 });
 
 export const UpdateQuizSchema = z.object({
@@ -29,6 +28,9 @@ export const UpdateQuizSchema = z.object({
   startTime: z.string().datetime().optional(),
   endTime: z.string().datetime().optional(),
   isPublished: z.boolean().optional(),
+  levelNumber: z.number().int().positive().optional(),
+  passThreshold: z.number().min(0).max(100).optional(),
+  prerequisiteMaterialIds: z.array(z.string()).optional(),
 });
 
 export const QuizParamSchema = z.object({
@@ -38,36 +40,12 @@ export const QuizParamSchema = z.object({
 // ==========================================
 // Question Schema
 // ==========================================
-export const CreateQuizLevelSchema = z.object({
-  quizId: z.string().min(1, "Quiz ID is required"),
-  title: z.string().min(1, "Title is required"),
-  levelOrder: z
-    .number()
-    .int()
-    .positive("Level order must be a positive integer"),
-});
-
-export const UpdateQuizLevelSchema = z.object({
-  title: z.string().min(1, "Title cannot be empty").optional(),
-  levelOrder: z
-    .number()
-    .int()
-    .positive("Level order must be a positive integer")
-    .optional(),
-});
-
-// ==========================================
-// Question Schema
-// ==========================================
 export const GetQuestionsQuerySchema = z.object({
-  quizLevelId: z
-    .string()
-    .min(1, "Quiz Level ID is required")
-    .describe("Required Quiz Level ID"),
+  quizId: z.string().min(1, "Quiz ID is required").describe("Required Quiz ID"),
 });
 
 export const CreateQuizQuestionSchema = z.object({
-  quizLevelId: z.string().min(1, "Quiz Level ID is required"), // Updated from quizId
+  quizId: z.string().min(1, "Quiz ID is required"),
   questionText: z.string().min(1, "Question text is required"),
   answerText: z.string().min(1, "Answer text is required"),
   maxScore: z
@@ -101,7 +79,7 @@ export const QuestionParamSchema = z.object({
 });
 
 export const GetGroupedQuestionsQuerySchema = z.object({
-  materialId: z.string().min(1, "Material ID is required"),
+  groupId: z.string().min(1, "Group ID is required"),
 });
 
 // ==========================================
@@ -113,12 +91,12 @@ export const GetKeywordsQuerySchema = z.object({
 
 export const CreateKeywordSchema = z.object({
   questionId: z.string().min(1, "Question ID is required"),
-  blankOrder: z.number().int().min(0, "Blank order must be non-negative"),
+  blankOrder: z.number().int().min(1, "Blank order must be at least 1"),
   correctAnswer: z.string().min(1, "Correct answer is required"),
 });
 
 export const UpdateKeywordSchema = z.object({
-  blankOrder: z.number().int().min(0).optional(),
+  blankOrder: z.number().int().min(1).optional(),
   correctAnswer: z.string().min(1).optional(),
 });
 
@@ -130,7 +108,7 @@ export const KeywordParamSchema = z.object({
 // Quiz Attempt Schema
 // ==========================================
 export const CreateQuizAttemptSchema = z.object({
-  quizLevelId: z.string().min(1, "Quiz ID is required"),
+  quizId: z.string().min(1, "Quiz ID is required"),
 });
 
 export const GetQuizAttemptsQuerySchema = z.object({
@@ -169,7 +147,7 @@ export const QuizAnswerParamSchema = z.object({
 
 export const CreateBulkQuizAnswerSchema = z.object({
   quizAttemptId: z.string().min(1, "Quiz Attempt ID is required"),
-  quizLevelId: z.string().min(1, "Quiz Level ID is required"),
+  quizId: z.string().min(1, "Quiz ID is required"),
   answers: z
     .array(
       z.object({
@@ -186,9 +164,6 @@ export type CreateQuizQuestionInput = z.infer<typeof CreateQuizQuestionSchema>;
 export type UpdateQuizQuestionInput = z.infer<typeof UpdateQuizQuestionSchema>;
 export type CreateKeywordInput = z.infer<typeof CreateKeywordSchema>;
 export type UpdateKeywordInput = z.infer<typeof UpdateKeywordSchema>;
-export type CreateQuizLevelInput = z.infer<typeof CreateQuizLevelSchema>;
-export type UpdateQuizLevelInput = z.infer<typeof UpdateQuizLevelSchema>;
-export type GetQuizLevelsQueryInput = z.infer<typeof GetQuizLevelsQuerySchema>;
 export type CreateQuizAttemptInput = z.infer<typeof CreateQuizAttemptSchema>;
 export type SubmitQuizAttemptInput = z.infer<typeof SubmitQuizAttemptSchema>;
 export type CreateQuizAnswerInput = z.infer<typeof CreateQuizAnswerSchema>;

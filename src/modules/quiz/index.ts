@@ -1,7 +1,7 @@
 import {
   QuizService,
   QuizQuestionService,
-  QuizLevelService,
+  QuestionKeywordService,
   QuizAttemptService,
   QuizAnswerService,
 } from "./service";
@@ -15,9 +15,10 @@ import {
   QuestionParamSchema,
   GetQuizzesQuerySchema,
   GetQuestionsQuerySchema,
-  GetQuizLevelsQuerySchema,
-  CreateQuizLevelSchema,
-  UpdateQuizLevelSchema,
+  GetKeywordsQuerySchema,
+  CreateKeywordSchema,
+  UpdateKeywordSchema,
+  KeywordParamSchema,
   GetQuizAttemptsQuerySchema,
   QuizAttemptParamSchema,
   CreateQuizAttemptSchema,
@@ -67,10 +68,7 @@ const quizRoutes = createProtectedApp()
   .get(
     "/",
     async ({ query, set, log, locale }) => {
-      const quizzes = await QuizService.getQuizzes(
-        BigInt(query.materialId),
-        log,
-      );
+      const quizzes = await QuizService.getQuizzes(query.groupId, log);
       return ok({ set, locale }, quizzes, "quiz.listSuccess");
     },
     {
@@ -146,90 +144,12 @@ const quizRoutes = createProtectedApp()
     },
   );
 
-const levelRoutes = createProtectedApp()
-  .get(
-    "/",
-    async ({ query, set, log, locale }) => {
-      const levels = await QuizLevelService.getQuizLevels(
-        BigInt(query.quizId),
-        log,
-      );
-      return ok({ set, locale }, levels, "quizLevel.listSuccess");
-    },
-    {
-      query: GetQuizLevelsQuerySchema,
-      response: { 200: QuizModel.levels, 500: QuizModel.error },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .get(
-    "/:id",
-    async ({ params, set, log, locale }) => {
-      const level = await QuizLevelService.getQuizLevel(BigInt(params.id), log);
-      return ok({ set, locale }, level, "quizLevel.detailSuccess");
-    },
-    {
-      response: { 200: QuizModel.level, 500: QuizModel.error },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .post(
-    "/",
-    async ({ body, set, log, locale }) => {
-      const level = await QuizLevelService.createQuizLevel(body, log);
-      return ok({ set, locale }, level, "quizLevel.createSuccess", 201);
-    },
-    {
-      body: CreateQuizLevelSchema,
-      response: {
-        201: QuizModel.createLevelResult,
-        400: QuizModel.validationError,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "create"),
-    },
-  )
-  .patch(
-    "/:id",
-    async ({ params, body, set, log, locale }) => {
-      const level = await QuizLevelService.updateQuizLevel(
-        BigInt(params.id),
-        body,
-        log,
-      );
-      return ok({ set, locale }, level, "quizLevel.updateSuccess");
-    },
-    {
-      body: UpdateQuizLevelSchema,
-      response: {
-        200: QuizModel.updateLevelResult,
-        400: QuizModel.validationError,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "update"),
-    },
-  )
-  .delete(
-    "/:id",
-    async ({ params, set, log, locale }) => {
-      const result = await QuizLevelService.deleteQuizLevel(
-        BigInt(params.id),
-        log,
-      );
-      return ok({ set, locale }, result, "quizLevel.deleteSuccess");
-    },
-    {
-      response: { 200: QuizModel.deleteLevelResult, 500: QuizModel.error },
-      beforeHandle: hasPermission(FEATURE, "delete"),
-    },
-  );
-
 const questionRoutes = createProtectedApp()
   .get(
     "/",
     async ({ query, set, log, locale }) => {
       const questions = await QuizQuestionService.getQuestions(
-        BigInt(query.quizLevelId),
+        BigInt(query.quizId),
         log,
       );
       return ok({ set, locale }, questions, "quiz.questionListSuccess");
@@ -301,7 +221,7 @@ const questionRoutes = createProtectedApp()
     "/attempt",
     async ({ query, set, log, locale }) => {
       const questions = await QuizQuestionService.getStudentQuestions(
-        BigInt(query.quizLevelId),
+        BigInt(query.quizId),
         log,
       );
       return ok({ set, locale }, questions, "quiz.questionListSuccess");
@@ -312,8 +232,81 @@ const questionRoutes = createProtectedApp()
         200: QuizModel.questionsWithoutAnswer,
         500: QuizModel.error,
       },
-      // Uses a read action but fits standard candidate authorization roles
       beforeHandle: hasPermission(FEATURE, "read"),
+    },
+  );
+
+const keywordRoutes = createProtectedApp()
+  .get(
+    "/",
+    async ({ query, set, log, locale }) => {
+      const keywords = await QuestionKeywordService.getKeywords(
+        BigInt(query.questionId),
+        log,
+      );
+      return ok({ set, locale }, keywords, "keyword.listSuccess");
+    },
+    {
+      query: GetKeywordsQuerySchema,
+      response: { 200: QuizModel.keywords, 500: QuizModel.error },
+      beforeHandle: hasPermission(FEATURE, "read"),
+    },
+  )
+  .post(
+    "/",
+    async ({ body, set, log, locale }) => {
+      const keyword = await QuestionKeywordService.createKeyword(body, log);
+      return ok({ set, locale }, keyword, "keyword.createSuccess", 201);
+    },
+    {
+      body: CreateKeywordSchema,
+      response: {
+        201: QuizModel.keyword,
+        400: QuizModel.validationError,
+        500: QuizModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE, "create"),
+    },
+  )
+  .patch(
+    "/:id",
+    async ({ params, body, set, log, locale }) => {
+      const keyword = await QuestionKeywordService.updateKeyword(
+        BigInt(params.id),
+        body,
+        log,
+      );
+      return ok({ set, locale }, keyword, "keyword.updateSuccess");
+    },
+    {
+      params: KeywordParamSchema,
+      body: UpdateKeywordSchema,
+      response: {
+        200: QuizModel.keyword,
+        400: QuizModel.validationError,
+        404: QuizModel.error,
+        500: QuizModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE, "update"),
+    },
+  )
+  .delete(
+    "/:id",
+    async ({ params, set, log, locale }) => {
+      const result = await QuestionKeywordService.deleteKeyword(
+        BigInt(params.id),
+        log,
+      );
+      return ok({ set, locale }, result, "keyword.deleteSuccess");
+    },
+    {
+      params: KeywordParamSchema,
+      response: {
+        200: QuizModel.deleteResult,
+        404: QuizModel.error,
+        500: QuizModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE, "delete"),
     },
   );
 
@@ -406,7 +399,7 @@ const attemptRoutes = createProtectedApp()
       return ok({ set, locale }, progress, "quizAttempt.progressSuccess");
     },
     {
-      query: GetQuizLevelsQuerySchema,
+      query: GetQuestionsQuerySchema,
       response: {
         200: QuizModel.quizProgress,
         500: QuizModel.error,
@@ -438,7 +431,7 @@ const attemptRoutes = createProtectedApp()
     async ({ params, user, set, log, locale }) => {
       const results = await QuizAttemptService.getAttemptResults(
         params.id,
-        user.id,
+        user,
         log,
       );
 
@@ -514,7 +507,6 @@ const answerRoutes = createProtectedApp()
   .post(
     "/bulk",
     async ({ body, user, set, log, locale }) => {
-      // Pass the request input alongside the verified student user session ID
       const answers = await QuizAnswerService.createBulkAnswers(
         body,
         user.id,
@@ -533,6 +525,7 @@ const answerRoutes = createProtectedApp()
       beforeHandle: hasPermission(FEATURE, "create"),
     },
   );
+
 // ─────────────────────────────────────────────
 // App assembly
 // ─────────────────────────────────────────────
@@ -542,8 +535,8 @@ export const quizzes = createBaseApp({ tags: ["Quizzes"] }).group(
   (app) =>
     app
       .use(quizRoutes)
-      .group("/levels", (app) => app.use(levelRoutes))
       .group("/questions", (app) => app.use(questionRoutes))
+      .group("/keywords", (app) => app.use(keywordRoutes))
       .group("/attempts", (app) => app.use(attemptRoutes))
       .group("/answers", (app) => app.use(answerRoutes))
       .onError(({ error, set, locale }) => {

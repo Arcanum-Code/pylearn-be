@@ -134,18 +134,37 @@ export abstract class DashboardService {
   static async getStudentDashboard(studentId: string, log: Logger) {
     log.debug({ studentId }, "Fetching student progression dashboard data");
 
-    const attempts = await prisma.quizAttempt.findMany({
-      where: { studentId },
-      include: {
-        quiz: {
-          select: {
-            id: true,
-            title: true,
+    const [attempts, enrollments] = await Promise.all([
+      prisma.quizAttempt.findMany({
+        where: { studentId },
+        include: {
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.groupEnrollment.findMany({
+        where: { studentId },
+        include: {
+          group: {
+            include: {
+              materials: {
+                include: {
+                  reads: {
+                    where: { studentId },
+                  },
+                },
+                orderBy: { sequence: "asc" },
+              },
+            },
+          },
+        },
+      }),
+    ]);
 
     const totalAttempts = attempts.length;
     const completedAttempts = attempts.filter((a) => a.submittedAt !== null);
@@ -159,6 +178,38 @@ export abstract class DashboardService {
       },
       "Student dashboard metrics processed successfully",
     );
+
+    const enrolledGroups = enrollments.map((enrollment) => {
+      let materialsCompleted = 0;
+      const materials = enrollment.group.materials.map((mat) => {
+        const read = mat.reads[0];
+        let status: "not_started" | "in_progress" | "completed" = "not_started";
+
+        if (read) {
+          if (read.readAt) {
+            status = "completed";
+            materialsCompleted++;
+          } else {
+            status = "in_progress";
+          }
+        }
+
+        return {
+          materialId: mat.id.toString(),
+          title: mat.title,
+          status,
+          scrollPercentage: read ? read.scrollPercentage : null,
+        };
+      });
+
+      return {
+        groupId: enrollment.group.id,
+        groupName: enrollment.group.name,
+        materialsCompleted,
+        materialsTotal: materials.length,
+        materials,
+      };
+    });
 
     return {
       overview: {
@@ -177,6 +228,7 @@ export abstract class DashboardService {
         quizTitle: a.quiz.title,
         submittedAt: a.submittedAt!.toISOString(),
       })),
+      enrolledGroups,
     };
   }
 

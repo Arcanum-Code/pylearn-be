@@ -55,10 +55,26 @@ const RecentResultItemSchema = z.object({
   submittedAt: z.string().datetime(),
 });
 
+const EnrolledGroupMaterialSchema = z.object({
+  materialId: z.string(),
+  title: z.string(),
+  status: z.enum(["not_started", "in_progress", "completed"]),
+  scrollPercentage: z.number().nullable(),
+});
+
+const EnrolledGroupSchema = z.object({
+  groupId: z.string(),
+  groupName: z.string(),
+  materialsCompleted: z.number().int().nonnegative(),
+  materialsTotal: z.number().int().nonnegative(),
+  materials: z.array(EnrolledGroupMaterialSchema),
+});
+
 export const StudentDashboardSchema = z.object({
   overview: StudentOverviewSchema,
   inProgress: z.array(InProgressAttemptItemSchema),
   recentResults: z.array(RecentResultItemSchema),
+  enrolledGroups: z.array(EnrolledGroupSchema),
 });
 
 // New Lecturer Dashboard schemas (Group and Quiz scoped)

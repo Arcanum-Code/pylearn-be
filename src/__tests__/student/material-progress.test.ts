@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from "bun:test";
-import { app } from "../../server";
-import { prisma } from "../../libs/prisma";
+import { app } from "@/server";
+import { prisma } from "@/libs/prisma";
 import {
   resetDatabase,
   createAuthenticatedUser,
@@ -8,7 +8,7 @@ import {
   createTestUser,
 } from "../test_utils";
 
-describe("Student Material API", () => {
+describe("Student Material API - Progress", () => {
   let authHeaders: Record<string, string>;
   let groupId: string;
   let material1Id: bigint;
@@ -61,32 +61,6 @@ describe("Student Material API", () => {
       },
     });
     material2Id = m2.id;
-  });
-
-  it("should get group materials with default progress", async () => {
-    const res = await app.handle(
-      new Request(`http://localhost/api/student/groups/${groupId}/materials`, {
-        headers: authHeaders,
-      }),
-    );
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.data.group_name).toBe("Test Group");
-    expect(body.data.materials.length).toBe(2);
-    expect(body.data.materials[0].status).toBe("not_started");
-  });
-
-  it("should get material detail and auto-create in_progress state", async () => {
-    const res = await app.handle(
-      new Request(`http://localhost/api/student/materials/${material1Id}`, {
-        headers: authHeaders,
-      }),
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.title).toBe("Mat 1");
-    expect(body.data.status).toBe("in_progress");
-    expect(body.data.navigation.next_material_id).toBe(material2Id.toString());
   });
 
   it("should update progress to completed", async () => {

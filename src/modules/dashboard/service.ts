@@ -60,44 +60,47 @@ export abstract class DashboardService {
     log.debug("Fetching global lecturer dashboard data");
 
     // 1. Fetch top-level global stats and detailed breakdowns concurrently without lecturerId limits
-    const [totalMaterials, totalQuizzes, totalAttemptsCount, materialsData] =
-      await Promise.all([
-        prisma.material.count(), // Global materials count
-        prisma.quiz.count(), // Global quizzes count
-        prisma.quizAttempt.count(), // ✅ Global attempts calculated directly at database level for maximum speed
-        prisma.material.findMany({
-          select: {
-            id: true,
-            title: true,
-            materialType: true,
-            quizzes: {
-              select: {
-                id: true,
-                levels: {
-                  select: {
-                    id: true,
-                  },
-                },
-                QuizAttempt: {
-                  select: {
-                    studentId: true, // Used to compute unique student engagement count per material
-                  },
-                },
-              },
+    const [
+      totalMaterials,
+      totalQuizzes,
+      totalAttemptsCount,
+      materialsData,
+      quizzesData,
+    ] = await Promise.all([
+      prisma.material.count(), // Global materials count
+      prisma.quiz.count(), // Global quizzes count
+      prisma.quizAttempt.count(), // ✅ Global attempts calculated directly at database level for maximum speed
+      prisma.material.findMany({
+        select: {
+          id: true,
+          title: true,
+          materialType: true,
+          groupId: true,
+        },
+      }),
+      prisma.quiz.findMany({
+        select: {
+          id: true,
+          groupId: true,
+          levelNumber: true,
+          QuizAttempt: {
+            select: {
+              studentId: true,
             },
           },
-        }),
-      ]);
+        },
+      }),
+    ]);
 
     // 2. Map and aggregate metrics down per material
     const materialBreakdown = materialsData.map((material) => {
-      let quizLevelCount = 0;
+      const groupQuizzes = quizzesData.filter(
+        (q) => q.groupId === material.groupId,
+      );
       const uniqueStudentsSet = new Set<string>();
 
-      material.quizzes.forEach((quiz) => {
-        quizLevelCount += quiz.levels.length;
-
-        // Collate unique student IDs who have tried this material's quizzes
+      groupQuizzes.forEach((quiz) => {
+        // Collate unique student IDs who have tried this material's group's quizzes
         quiz.QuizAttempt.forEach((attempt) => {
           uniqueStudentsSet.add(attempt.studentId);
         });
@@ -107,8 +110,8 @@ export abstract class DashboardService {
         materialId: material.id.toString(),
         title: material.title,
         materialType: material.materialType,
-        quizCount: material.quizzes.length,
-        levelCount: quizLevelCount,
+        quizCount: groupQuizzes.length,
+        levelCount: groupQuizzes.length,
         uniqueStudentsEngaged: uniqueStudentsSet.size,
       };
     });
@@ -134,14 +137,10 @@ export abstract class DashboardService {
     const attempts = await prisma.quizAttempt.findMany({
       where: { studentId },
       include: {
-        quizLevel: {
+        quiz: {
           select: {
-            quiz: {
-              select: {
-                id: true,
-                title: true,
-              },
-            },
+            id: true,
+            title: true,
           },
         },
       },
@@ -168,16 +167,14 @@ export abstract class DashboardService {
       },
       inProgress: inProgressAttempts.map((a) => ({
         attemptId: a.id.toString(),
-        quizLevelId: a.quizLevelId.toString(),
-        quizId: a.quizLevel.quiz.id.toString(),
-        quizTitle: a.quizLevel.quiz.title,
+        quizId: a.quiz.id.toString(),
+        quizTitle: a.quiz.title,
         startedAt: a.createdAt.toISOString(),
       })),
       recentResults: completedAttempts.slice(0, 5).map((a) => ({
         attemptId: a.id.toString(),
-        quizLevelId: a.quizLevelId.toString(), // ✅ Updated from quizId
-        quizId: a.quizLevel.quiz.id.toString(), // ✅ Extracted safely from nested relation
-        quizTitle: a.quizLevel.quiz.title, // ✅ Extracted safely from nested relation
+        quizId: a.quiz.id.toString(),
+        quizTitle: a.quiz.title,
         submittedAt: a.submittedAt!.toISOString(),
       })),
     };

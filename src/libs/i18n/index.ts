@@ -66,7 +66,7 @@ const locales: Record<string, typeof en> = {
 export const SUPPORTED_LOCALES = Object.keys(locales) as Array<
   keyof typeof locales
 >;
-export const DEFAULT_LOCALE = "en";
+export const DEFAULT_LOCALE = "id";
 
 export type Locale = typeof en;
 

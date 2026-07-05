@@ -87,7 +87,7 @@ describe("POST /auth/login - Login i18n", () => {
     expect(body.message).toBe("Kredensial tidak valid");
   });
 
-  it("should return English message by default when no Accept-Language header", async () => {
+  it("should return Indonesian message by default when no Accept-Language header", async () => {
     await createTestUser({ email: "i18n@test.com" });
 
     const response = await app.handle(
@@ -106,7 +106,7 @@ describe("POST /auth/login - Login i18n", () => {
 
     const body = await response.json();
     expect(response.status).toBe(401);
-    expect(body.message).toBe("Invalid credentials");
+    expect(body.message).toBe("Kredensial tidak valid");
   });
 
   it("should return Spanish message when Accept-Language is es-ES", async () => {

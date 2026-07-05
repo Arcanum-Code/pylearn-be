@@ -66,6 +66,7 @@ export abstract class DashboardService {
       totalAttemptsCount,
       materialsData,
       quizzesData,
+      groupsData,
     ] = await Promise.all([
       prisma.material.count(), // Global materials count
       prisma.quiz.count(), // Global quizzes count
@@ -86,6 +87,25 @@ export abstract class DashboardService {
           QuizAttempt: {
             select: {
               studentId: true,
+            },
+          },
+        },
+      }),
+      prisma.group.findMany({
+        select: {
+          id: true,
+          name: true,
+          _count: {
+            select: { enrollments: true },
+          },
+          quizzes: {
+            select: {
+              passThreshold: true,
+              QuizAttempt: {
+                select: {
+                  score: true,
+                },
+              },
             },
           },
         },
@@ -116,6 +136,38 @@ export abstract class DashboardService {
       };
     });
 
+    const groupsOverview = groupsData.map((group) => {
+      let groupTotalAttempts = 0;
+      let passedAttempts = 0;
+      let scoredAttemptsCount = 0;
+
+      group.quizzes.forEach((quiz) => {
+        groupTotalAttempts += quiz.QuizAttempt.length;
+
+        quiz.QuizAttempt.forEach((attempt) => {
+          if (attempt.score !== null) {
+            scoredAttemptsCount++;
+            if (attempt.score >= quiz.passThreshold) {
+              passedAttempts++;
+            }
+          }
+        });
+      });
+
+      const avgPassRate =
+        scoredAttemptsCount > 0
+          ? Number(((passedAttempts / scoredAttemptsCount) * 100).toFixed(1))
+          : 0;
+
+      return {
+        groupId: group.id,
+        groupName: group.name,
+        totalStudents: group._count.enrollments,
+        avgPassRate,
+        totalStudentAttempts: groupTotalAttempts,
+      };
+    });
+
     log.info(
       { totalMaterials, totalQuizzes, totalAttemptsCount },
       "Global lecturer dashboard data compiled successfully",
@@ -127,6 +179,7 @@ export abstract class DashboardService {
         totalQuizzes,
         totalStudentAttempts: totalAttemptsCount,
       },
+      groupsOverview,
       materialBreakdown,
     };
   }

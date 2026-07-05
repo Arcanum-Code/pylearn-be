@@ -31,8 +31,17 @@ const MaterialBreakdownItemSchema = z.object({
   uniqueStudentsEngaged: z.number().int().nonnegative(),
 });
 
+const GroupsOverviewItemSchema = z.object({
+  groupId: z.string(),
+  groupName: z.string(),
+  totalStudents: z.number().int().nonnegative(),
+  avgPassRate: z.number().nonnegative(),
+  totalStudentAttempts: z.number().int().nonnegative(),
+});
+
 export const LecturerDashboardSchema = z.object({
   overview: LecturerOverviewSchema,
+  groupsOverview: z.array(GroupsOverviewItemSchema),
   materialBreakdown: z.array(MaterialBreakdownItemSchema),
 });
 

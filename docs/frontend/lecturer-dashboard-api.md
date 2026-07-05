@@ -21,6 +21,15 @@ This endpoint provides a global overview of the lecturer's content (materials an
       "totalQuizzes": 5,
       "totalStudentAttempts": 150
     },
+    "groupsOverview": [
+      {
+        "groupId": "grp123xyz...",
+        "groupName": "Introduction to Computer Science - Section A",
+        "totalStudents": 45,
+        "avgPassRate": 82.5,
+        "totalStudentAttempts": 120
+      }
+    ],
     "materialBreakdown": [
       {
         "materialId": "cm123xyz...",

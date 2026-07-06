@@ -72,6 +72,7 @@ const protectedMaterials = createProtectedApp()
     },
     {
       body: CreateMaterialSchema,
+      type: "multipart/form-data",
       response: {
         201: MaterialModel.createResult,
         400: MaterialModel.validationError,

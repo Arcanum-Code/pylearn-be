@@ -1,21 +1,21 @@
 import { PaginationSchema } from "@/libs/response";
 import { z } from "zod";
 
-export const MaterialTypeEnum = z.enum(["text", "file", "video", "link"]);
+export const MaterialTypeEnum = z.enum(["file"]);
 
 export const CreateMaterialSchema = z.object({
   lecturerId: z.string(),
   groupId: z.string().min(1),
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  materialType: z.enum(["text", "file", "video", "link"], {
+  materialType: z.enum(["file"], {
     errorMap: () => ({
-      message: 'Must be one of "text", "file", "video", or "link"',
+      message: 'Must be "file"',
     }),
   }),
   content: z.string().optional(),
   sourceUrl: z.string().url().optional(),
-  iconName: z.string().max(50).optional(),
+
   isPublished: z
     .preprocess((val) => {
       if (val === "true") return true;
@@ -31,18 +31,15 @@ export const CreateMaterialSchema = z.object({
     .optional(),
   file: z
     .any()
-    .refine((file) => !file || file instanceof File, "Must be a File object")
+    .refine((file) => file instanceof File, "Must be a File object")
     .refine(
-      (file) =>
-        !file || (file instanceof File && file.type === "application/pdf"),
+      (file) => file instanceof File && file.type === "application/pdf",
       "Only PDF files are allowed",
     )
     .refine(
-      (file) =>
-        !file || (file instanceof File && file.size <= 10 * 1024 * 1024),
+      (file) => file instanceof File && file.size <= 10 * 1024 * 1024,
       "File size must be less than 10MB",
-    )
-    .optional(),
+    ),
 });
 
 export const CreateMaterialMeSchema = CreateMaterialSchema.omit({
@@ -54,15 +51,15 @@ export const UpdateMaterialSchema = z
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(1000).optional(),
     materialType: z
-      .enum(["text", "file", "video", "link"], {
+      .enum(["file"], {
         errorMap: () => ({
-          message: 'Must be one of "text", "file", "video", or "link"',
+          message: 'Must be "file"',
         }),
       })
       .optional(),
     content: z.string().optional(),
     sourceUrl: z.string().url().optional(),
-    iconName: z.string().max(50).optional(),
+
     isPublished: z
       .preprocess((val) => {
         if (val === "true" || val === true) return true;

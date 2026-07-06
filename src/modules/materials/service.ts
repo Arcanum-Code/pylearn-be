@@ -16,7 +16,7 @@ export const SAFE_MATERIAL_SELECT = {
   materialType: true,
   content: true,
   sourceUrl: true,
-  iconName: true,
+
   isPublished: true,
   publishedAt: true,
   createdAt: true,
@@ -125,6 +125,24 @@ export abstract class MaterialService {
       "Creating new material",
     );
 
+    let filePath: string | null = null;
+    if (data.file instanceof File) {
+      log.debug("Processing uploaded PDF file...");
+      const uploadDir = join(process.cwd(), "storage", "materials");
+      await mkdir(uploadDir, { recursive: true });
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const fileName = `${uniqueSuffix}-${data.file.name.replace(/\\s+/g, "_")}`;
+      const fullPath = join(uploadDir, fileName);
+
+      const bytesWritten = await Bun.write(fullPath, data.file);
+      log.debug(
+        { bytesWritten, path: fullPath },
+        "File saved to local storage",
+      );
+
+      filePath = `/storage/materials/${fileName}`;
+    }
+
     let sequence = data.sequence;
     if (sequence === undefined || sequence === null) {
       const lastMat = await prisma.material.findFirst({
@@ -135,9 +153,12 @@ export abstract class MaterialService {
       sequence = lastMat ? lastMat.sequence + 1000 : 1000;
     }
 
+    const { file, ...dbData } = data;
+
     const material = await prisma.material.create({
       data: {
-        ...data,
+        ...dbData,
+        content: filePath ?? dbData.content ?? null,
         sequence,
         version: 1,
         publishedAt: data.isPublished ? new Date() : null,
@@ -201,7 +222,7 @@ export abstract class MaterialService {
         version: 1,
         content: filePath ?? data.content ?? null,
         sourceUrl: data.sourceUrl ?? null,
-        iconName: data.iconName ?? null,
+
         publishedAt:
           data.isPublished === "true" || data.isPublished === true
             ? new Date()
@@ -291,7 +312,7 @@ export abstract class MaterialService {
             ? data.content
             : undefined,
       sourceUrl: data.sourceUrl !== undefined ? data.sourceUrl : undefined,
-      iconName: data.iconName !== undefined ? data.iconName : undefined,
+
       sequence: data.sequence !== undefined ? data.sequence : undefined,
     };
 

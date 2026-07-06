@@ -16,7 +16,7 @@ export const MaterialSafe = z.object({
   materialType: z.string(),
   content: z.string().nullable(),
   sourceUrl: z.string().nullable(),
-  iconName: z.string().nullable(),
+
   isPublished: z.boolean(),
   publishedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),

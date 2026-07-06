@@ -18,11 +18,25 @@ export abstract class GroupService {
     log.debug("Fetching all groups");
     const groups = await prisma.group.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: {
+            enrollments: true,
+            materials: true,
+            quizzes: true,
+          },
+        },
+      },
     });
     return groups.map((group) => ({
       ...group,
       createdAt: group.createdAt.toISOString(),
       updatedAt: group.updatedAt.toISOString(),
+      _count: {
+        users: group._count.enrollments,
+        materials: group._count.materials,
+        quizzes: group._count.quizzes,
+      },
     }));
   }
 
@@ -36,6 +50,13 @@ export abstract class GroupService {
         },
         quizzes: {
           orderBy: { levelNumber: "asc" },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+            materials: true,
+            quizzes: true,
+          },
         },
       },
     });
@@ -56,6 +77,11 @@ export abstract class GroupService {
         ...q,
         id: q.id.toString(),
       })),
+      _count: {
+        users: group._count.enrollments,
+        materials: group._count.materials,
+        quizzes: group._count.quizzes,
+      },
     };
   }
 

@@ -26,7 +26,7 @@ describe("Group API - Update", () => {
     });
 
     const group = await prisma.group.create({
-      data: { name: "Old Name", description: "Old Desc" },
+      data: { name: "Old Name", description: "Old Desc", level: "BASIC" },
     });
 
     const res = await app.handle(
@@ -39,12 +39,14 @@ describe("Group API - Update", () => {
         },
         body: JSON.stringify({
           name: "Updated Week 1",
+          level: "INTERMEDIATE",
         }),
       }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.name).toBe("Updated Week 1");
+    expect(body.data.level).toBe("INTERMEDIATE");
   });
 
   it("should reject updating group if user lacks permission", async () => {

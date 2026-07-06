@@ -5,8 +5,16 @@ export const GroupSafe = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
+  level: z.enum(["BASIC", "INTERMEDIATE", "ADVANCED"]),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  _count: z
+    .object({
+      users: z.number().int(),
+      materials: z.number().int(),
+      quizzes: z.number().int(),
+    })
+    .optional(),
 });
 
 export const GroupMaterialSafe = z.object({

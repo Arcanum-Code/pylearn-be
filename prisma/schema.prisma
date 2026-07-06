@@ -57,10 +57,17 @@ model Material {
   reads             MaterialRead[]
 }
 
+enum GroupLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
 model Group {
   id          String     @id @default(cuid())
   name        String
   description String?
+  level       GroupLevel @default(BASIC)
   materials   Material[]
   quizzes     Quiz[]
   createdAt   DateTime   @default(now())

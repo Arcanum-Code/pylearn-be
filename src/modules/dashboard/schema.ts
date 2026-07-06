@@ -25,3 +25,14 @@ export const StudentTableQuerySchema = z.object({
 export const NudgeBodySchema = z.object({
   message: z.string().min(1),
 });
+
+export const CalendarQuerySchema = z.object({
+  year: z.coerce.number().int().min(1000).max(9999),
+  month: z.coerce.number().int().min(1).max(12),
+  groupId: z.string().optional(),
+});
+
+export const RecentActivityQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().default(10),
+  groupId: z.string().optional(),
+});

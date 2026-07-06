@@ -205,6 +205,25 @@ const LecturerDashboardStudentActivity = z.object({
   quiz_attempts: z.array(StudentDrilldownQuizAttempt),
 });
 
+const CalendarEventItem = z.object({
+  id: z.string(),
+  date: z.string(), // YYYY-MM-DD
+  time: z.string(), // HH:mm
+  type: z.enum(["quiz_open", "quiz_close", "material_release"]),
+  title: z.string(),
+  targetId: z.string(),
+  groupId: z.string(),
+});
+
+const RecentActivityItem = z.object({
+  id: z.string(),
+  studentName: z.string(),
+  taskName: z.string(),
+  submittedAt: z.string().datetime(),
+  score: z.number(),
+  groupId: z.string(),
+});
+
 export const DashboardModel = {
   dashboard: createResponseSchema(DashboardData),
   lecturerDashboard: createResponseSchema(LecturerDashboardSchema),
@@ -218,6 +237,8 @@ export const DashboardModel = {
   studentTable: createResponseSchema(LecturerDashboardStudentTable),
   studentActivity: createResponseSchema(LecturerDashboardStudentActivity),
   nudgeResult: createResponseSchema(z.object({ success: z.boolean() })),
+  calendarEvents: createResponseSchema(z.array(CalendarEventItem)),
+  recentActivity: createResponseSchema(z.array(RecentActivityItem)),
 
   error: createErrorSchema(z.null()),
 };

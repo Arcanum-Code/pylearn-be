@@ -1,6 +1,10 @@
 import { DashboardService } from "./service";
 import { DashboardModel } from "./model";
-import { DashboardParamSchema } from "./schema";
+import {
+  DashboardParamSchema,
+  CalendarQuerySchema,
+  RecentActivityQuerySchema,
+} from "./schema";
 import { errorResponse, successResponse } from "@/libs/response";
 import { createBaseApp, createProtectedApp } from "@/libs/base";
 import { hasPermission } from "@/middleware/permission";
@@ -75,6 +79,59 @@ const protectedDashboard = createProtectedApp()
   });
 
 const protectedLecturerDashboard = createProtectedApp()
+  .get(
+    "/calendar/events",
+    async ({ query: { year, month, groupId }, set, log, locale }) => {
+      const data = await DashboardService.getCalendarEvents(
+        year,
+        month,
+        groupId,
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      query: CalendarQuerySchema,
+      response: {
+        200: DashboardModel.calendarEvents,
+        500: DashboardModel.error,
+      },
+      beforeHandle: hasPermission("group_management", "read"),
+    },
+  )
+  .get(
+    "/dashboard/recent-activity",
+    async ({ query: { limit, groupId }, set, log, locale }) => {
+      const data = await DashboardService.getRecentActivity(
+        limit,
+        groupId,
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      query: RecentActivityQuerySchema,
+      response: {
+        200: DashboardModel.recentActivity,
+        500: DashboardModel.error,
+      },
+      beforeHandle: hasPermission("group_management", "read"),
+    },
+  )
   .group("/groups/:groupId/dashboard", (app) =>
     app
       .get(
@@ -129,4 +186,4 @@ const protectedLecturerDashboard = createProtectedApp()
 
 export const dashboard = createBaseApp({ tags: ["Dashboard"] })
   .group("/dashboard", (app) => app.use(protectedDashboard))
-  .group("/api/lecturer", (app) => app.use(protectedLecturerDashboard));
+  .group("/lecturer", (app) => app.use(protectedLecturerDashboard));

@@ -341,4 +341,154 @@ export abstract class DashboardService {
       })),
     };
   }
+
+  static async getCalendarEvents(
+    year: number,
+    month: number,
+    groupId: string | undefined,
+    log: Logger,
+  ) {
+    log.debug({ year, month, groupId }, "Fetching calendar events");
+
+    const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const endDate = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+
+    const [materials, quizzes] = await Promise.all([
+      prisma.material.findMany({
+        where: {
+          groupId,
+          publishedAt: {
+            gte: startDate,
+            lt: endDate,
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+          publishedAt: true,
+          groupId: true,
+        },
+      }),
+      prisma.quiz.findMany({
+        where: {
+          groupId,
+          OR: [
+            {
+              startTime: {
+                gte: startDate,
+                lt: endDate,
+              },
+            },
+            {
+              endTime: {
+                gte: startDate,
+                lt: endDate,
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          title: true,
+          startTime: true,
+          endTime: true,
+          groupId: true,
+        },
+      }),
+    ]);
+
+    const events = [];
+
+    for (const m of materials) {
+      if (m.publishedAt) {
+        const isoStr = m.publishedAt.toISOString();
+        events.push({
+          id: `mat-release-${m.id}`,
+          date: isoStr.split("T")[0],
+          time: isoStr.split("T")[1].substring(0, 5),
+          type: "material_release" as const,
+          title: `${m.title} rilis`,
+          targetId: m.id.toString(),
+          groupId: m.groupId,
+        });
+      }
+    }
+
+    for (const q of quizzes) {
+      if (q.startTime && q.startTime >= startDate && q.startTime < endDate) {
+        const isoStr = q.startTime.toISOString();
+        events.push({
+          id: `quiz-open-${q.id}`,
+          date: isoStr.split("T")[0],
+          time: isoStr.split("T")[1].substring(0, 5),
+          type: "quiz_open" as const,
+          title: `${q.title} dibuka`,
+          targetId: q.id.toString(),
+          groupId: q.groupId,
+        });
+      }
+      if (q.endTime && q.endTime >= startDate && q.endTime < endDate) {
+        const isoStr = q.endTime.toISOString();
+        events.push({
+          id: `quiz-close-${q.id}`,
+          date: isoStr.split("T")[0],
+          time: isoStr.split("T")[1].substring(0, 5),
+          type: "quiz_close" as const,
+          title: `${q.title} ditutup`,
+          targetId: q.id.toString(),
+          groupId: q.groupId,
+        });
+      }
+    }
+
+    events.sort((a, b) => {
+      const dateTimeA = `${a.date}T${a.time}`;
+      const dateTimeB = `${b.date}T${b.time}`;
+      return dateTimeA.localeCompare(dateTimeB);
+    });
+
+    return events;
+  }
+
+  static async getRecentActivity(
+    limit: number,
+    groupId: string | undefined,
+    log: Logger,
+  ) {
+    log.debug({ limit, groupId }, "Fetching recent activity");
+
+    const attempts = await prisma.quizAttempt.findMany({
+      where: {
+        submittedAt: { not: null },
+        quiz: groupId ? { groupId } : undefined,
+      },
+      orderBy: {
+        submittedAt: "desc",
+      },
+      take: limit,
+      include: {
+        student: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        quiz: {
+          select: {
+            title: true,
+            groupId: true,
+          },
+        },
+      },
+    });
+
+    return attempts.map((a) => ({
+      id: a.id.toString(),
+      studentName: a.student.name || a.student.email || "Unknown",
+      taskName: a.quiz.title,
+      submittedAt: a.submittedAt!.toISOString(),
+      score: a.score ?? 0,
+      groupId: a.quiz.groupId,
+    }));
+  }
 }

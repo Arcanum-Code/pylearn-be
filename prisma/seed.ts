@@ -10,6 +10,10 @@ const FEATURES = [
   { name: "material_management", description: "Manage material" },
   { name: "quiz_management", description: "Manage quizzes" },
   { name: "group_management", description: "Manage learning groups" },
+  {
+    name: "lecturer_quiz_access",
+    description: "Lecturer specific quiz management",
+  },
 ] as const;
 
 const ROLES = [
@@ -39,6 +43,7 @@ const ROLE_PERMISSIONS: Record<
     material_management: { c: true, r: true, u: true, d: true, p: true },
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: true, r: true, u: true, d: true, p: true },
+    lecturer_quiz_access: { c: true, r: true, u: true, d: true, p: true },
   },
   Dosen: {
     user_management: { c: true, r: true, u: true, d: true, p: true },
@@ -46,6 +51,7 @@ const ROLE_PERMISSIONS: Record<
     material_management: { c: true, r: true, u: true, d: true, p: true },
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: true, r: true, u: true, d: true, p: true },
+    lecturer_quiz_access: { c: true, r: true, u: true, d: true, p: true },
   },
   Mahasiswa: {
     user_management: { c: false, r: false, u: false, d: false, p: false },
@@ -53,6 +59,7 @@ const ROLE_PERMISSIONS: Record<
     material_management: { c: false, r: true, u: false, d: false, p: false },
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: false, r: true, u: false, d: false, p: false },
+    lecturer_quiz_access: { c: false, r: false, u: false, d: false, p: false },
   },
 };
 
@@ -165,7 +172,7 @@ async function main() {
       email: "dosen1@system.com",
       name: "Dosen One",
       password,
-      userId: `${dosenRoleId}1`,
+      userId: "dosenUmpo",
       roleId: dosenRoleId,
       isActive: true,
     },
@@ -183,7 +190,7 @@ async function main() {
       email: "mahasiswa1@system.com",
       name: "Mahasiswa One",
       password,
-      userId: `${mahasiswaRoleId}1`,
+      userId: "mahasiswaUmpo",
       roleId: mahasiswaRoleId,
       isActive: true,
     },

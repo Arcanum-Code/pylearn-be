@@ -85,6 +85,7 @@ export const LecturerQuizModel = {
       title: z.string(),
       status: z.string(),
       pass_threshold: z.number(),
+      can_publish: z.boolean(),
       questions: z.array(questionSchema),
       gating_materials: z.array(
         z.object({

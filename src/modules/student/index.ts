@@ -2,6 +2,6 @@ import { createBaseApp } from "@/libs/base";
 import { studentMaterials } from "./materials";
 
 export const student = createBaseApp({ tags: ["Student"] }).group(
-  "/api/student",
+  "/student",
   (app) => app.use(studentMaterials),
 );

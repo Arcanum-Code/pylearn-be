@@ -159,6 +159,34 @@ const protectedMaterials = createProtectedApp()
       beforeHandle: hasPermission(FEATURE_NAME, "update"),
     },
   )
+  .post(
+    "/:id/publish",
+    async ({ params, set, log, locale }) => {
+      const id = BigInt(params.id);
+      const data = await MaterialService.updateMaterial(
+        id,
+        { isPublished: true },
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "materials.updateSuccess" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      params: MaterialParamSchema,
+      response: {
+        200: MaterialModel.updateResult,
+        404: MaterialModel.error,
+        500: MaterialModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE_NAME, "update"),
+    },
+  )
   .delete(
     "/:id",
     async ({ params, set, log, locale }) => {

@@ -379,7 +379,7 @@ export class LecturerQuizService {
       errors.push({
         code: "no_materials_in_group",
         message:
-          "This group has no published materials yet, so this quiz cannot be gated.",
+          "Grup ini belum memiliki materi yang dipublikasikan, sehingga kuis ini tidak dapat dikunci.",
       });
     }
 
@@ -389,13 +389,14 @@ export class LecturerQuizService {
         errors.push({
           code: "question_missing_blanks",
           question_id: `q_${q.id}`,
-          message: "This question has no blanks defined.",
+          message:
+            "Pertanyaan ini belum memiliki isian (blanks) yang ditentukan.",
         });
       }
     }
 
     if (errors.length > 0) {
-      throw new LecturerQuizError(422, "quiz.publishValidationFailed", {
+      throw new LecturerQuizError(422, "Validasi penerbitan kuis gagal", {
         status: "draft",
         errors,
       });
@@ -459,6 +460,15 @@ export class LecturerQuizService {
       throw new LecturerQuizError(404, "common.notFound");
     }
 
+    let canPublish = quiz.group.materials.length > 0 && !quiz.isPublished;
+    if (quiz.questions.length === 0) canPublish = false; // A quiz needs at least one question to be meaningful
+    for (const q of quiz.questions) {
+      if (q.keywords.length === 0) {
+        canPublish = false;
+        break;
+      }
+    }
+
     return {
       quiz_id: quizIdStr,
       group_id: quiz.groupId,
@@ -466,6 +476,7 @@ export class LecturerQuizService {
       title: quiz.title,
       status: quiz.isPublished ? "published" : "draft",
       pass_threshold: quiz.passThreshold,
+      can_publish: canPublish,
       questions: quiz.questions.map((q) => ({
         question_id: `q_${q.id}`,
         question_text: q.questionText,

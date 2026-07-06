@@ -7,7 +7,7 @@ This document outlines the 10 API endpoints available for lecturers to manage Qu
 ### 1. List Quizzes in a Group
 Retrieve a list of all quizzes inside a specific student group.
 
-**Endpoint:** `GET /groups/:groupId/quizzes`
+**Endpoint:** `GET /lecturer/groups/:groupId/quizzes`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`read`)
 
@@ -33,7 +33,7 @@ Retrieve a list of all quizzes inside a specific student group.
 ### 2. Get Quiz Details
 Retrieve detailed information for a specific quiz, including all its questions, blanks, and gating materials.
 
-**Endpoint:** `GET /quizzes/:quizId`
+**Endpoint:** `GET /lecturer/quizzes/:quizId`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`read`)
 
@@ -79,7 +79,7 @@ Retrieve detailed information for a specific quiz, including all its questions, 
 ### 3. Create a Quiz
 Create a new quiz within a student group.
 
-**Endpoint:** `POST /groups/:groupId/quizzes`
+**Endpoint:** `POST /lecturer/groups/:groupId/quizzes`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`create`)
 
@@ -95,7 +95,7 @@ Create a new quiz within a student group.
 ### 4. Update a Quiz
 Update the properties of an existing quiz.
 
-**Endpoint:** `PATCH /quizzes/:quizId`
+**Endpoint:** `PATCH /lecturer/quizzes/:quizId`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`update`)
 
@@ -111,14 +111,14 @@ Update the properties of an existing quiz.
 ### 5. Delete a Quiz
 Delete a quiz entirely.
 
-**Endpoint:** `DELETE /quizzes/:quizId`
+**Endpoint:** `DELETE /lecturer/quizzes/:quizId`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`delete`)
 
 ### 6. Publish a Quiz
 Mark a quiz as published, making it visible/active for students.
 
-**Endpoint:** `POST /quizzes/:quizId/publish`
+**Endpoint:** `POST /lecturer/quizzes/:quizId/publish`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`update`)
 
@@ -141,7 +141,7 @@ Mark a quiz as published, making it visible/active for students.
 ### 7. Create a Question
 Add a new question to a quiz.
 
-**Endpoint:** `POST /quizzes/:quizId/questions`
+**Endpoint:** `POST /lecturer/quizzes/:quizId/questions`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`update`)
 
@@ -157,7 +157,7 @@ Add a new question to a quiz.
 ### 8. Update a Question
 Modify the text or order of an existing question. Note: Changing `key_answer_text` might invalidate existing blanks.
 
-**Endpoint:** `PATCH /questions/:questionId`
+**Endpoint:** `PATCH /lecturer/questions/:questionId`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`update`)
 
@@ -173,14 +173,14 @@ Modify the text or order of an existing question. Note: Changing `key_answer_tex
 ### 9. Delete a Question
 Delete a question from a quiz.
 
-**Endpoint:** `DELETE /questions/:questionId`
+**Endpoint:** `DELETE /lecturer/questions/:questionId`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`delete`)
 
 ### 10. Replace Blanks for a Question
 Set or replace the exact blank configurations (keywords and their index positions) for a question's key answer text.
 
-**Endpoint:** `PUT /questions/:questionId/blanks`
+**Endpoint:** `PUT /lecturer/questions/:questionId/blanks`
 **Auth:** Bearer Token
 **Permission Required:** `lecturer_quiz_access` (`update`)
 

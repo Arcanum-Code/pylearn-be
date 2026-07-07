@@ -14,6 +14,10 @@ const FEATURES = [
     name: "lecturer_quiz_access",
     description: "Lecturer specific quiz management",
   },
+  {
+    name: "student_material_access",
+    description: "Student specific material access and progress tracking",
+  },
 ] as const;
 
 const ROLES = [
@@ -44,6 +48,7 @@ const ROLE_PERMISSIONS: Record<
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: true, r: true, u: true, d: true, p: true },
     lecturer_quiz_access: { c: true, r: true, u: true, d: true, p: true },
+    student_material_access: { c: true, r: true, u: true, d: true, p: true },
   },
   Dosen: {
     user_management: { c: true, r: true, u: true, d: true, p: true },
@@ -52,6 +57,13 @@ const ROLE_PERMISSIONS: Record<
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: true, r: true, u: true, d: true, p: true },
     lecturer_quiz_access: { c: true, r: true, u: true, d: true, p: true },
+    student_material_access: {
+      c: false,
+      r: true,
+      u: false,
+      d: false,
+      p: false,
+    },
   },
   Mahasiswa: {
     user_management: { c: false, r: false, u: false, d: false, p: false },
@@ -60,6 +72,7 @@ const ROLE_PERMISSIONS: Record<
     quiz_management: { c: true, r: true, u: true, d: true, p: true },
     group_management: { c: false, r: true, u: false, d: false, p: false },
     lecturer_quiz_access: { c: false, r: false, u: false, d: false, p: false },
+    student_material_access: { c: false, r: true, u: true, d: false, p: false },
   },
 };
 

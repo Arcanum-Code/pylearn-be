@@ -22,20 +22,6 @@ import {
 
 const FEATURE_NAME = "student_quiz_access";
 
-type ResponseContext = {
-  set: Parameters<typeof successResponse>[0];
-  locale: string;
-};
-
-function ok<T>(
-  { set, locale }: ResponseContext,
-  data: T,
-  key: string,
-  status: 200 | 201 = 200,
-) {
-  return successResponse(set, data, { key }, status, undefined, locale);
-}
-
 const attemptRoutes = createProtectedApp()
   .get(
     "/",
@@ -45,7 +31,14 @@ const attemptRoutes = createProtectedApp()
         user.id,
         log,
       );
-      return ok({ set, locale }, attempts, "quizAttempt.listSuccess");
+      return successResponse(
+        set,
+        attempts,
+        { key: "quizAttempt.listSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       query: GetQuizAttemptsQuerySchema,
@@ -60,7 +53,14 @@ const attemptRoutes = createProtectedApp()
         BigInt(params.id),
         log,
       );
-      return ok({ set, locale }, attempt, "quizAttempt.getSuccess");
+      return successResponse(
+        set,
+        attempt,
+        { key: "quizAttempt.getSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       params: QuizAttemptParamSchema,
@@ -80,7 +80,14 @@ const attemptRoutes = createProtectedApp()
         body,
         log,
       );
-      return ok({ set, locale }, attempt, "quizAttempt.createSuccess", 201);
+      return successResponse(
+        set,
+        attempt,
+        { key: "quizAttempt.createSuccess" },
+        201,
+        undefined,
+        locale,
+      );
     },
     {
       body: CreateQuizAttemptSchema,
@@ -100,7 +107,14 @@ const attemptRoutes = createProtectedApp()
         user.id,
         log,
       );
-      return ok({ set, locale }, attempt, "quizAttempt.submitSuccess");
+      return successResponse(
+        set,
+        attempt,
+        { key: "quizAttempt.submitSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       params: QuizAttemptParamSchema,
@@ -120,7 +134,14 @@ const attemptRoutes = createProtectedApp()
         user.id,
         log,
       );
-      return ok({ set, locale }, progress, "quizAttempt.progressSuccess");
+      return successResponse(
+        set,
+        progress,
+        { key: "quizAttempt.progressSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       query: GetQuestionsQuerySchema,
@@ -138,7 +159,14 @@ const attemptRoutes = createProtectedApp()
         query,
         log,
       );
-      return ok({ set, locale }, results, "quizAttempt.bulkResultsSuccess");
+      return successResponse(
+        set,
+        results,
+        { key: "quizAttempt.bulkResultsSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       query: GetQuizAttemptsQuerySchema,
@@ -157,7 +185,14 @@ const attemptRoutes = createProtectedApp()
         user,
         log,
       );
-      return ok({ set, locale }, results, "quizAttempt.resultsSuccess");
+      return successResponse(
+        set,
+        results,
+        { key: "quizAttempt.resultsSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       params: QuizAttemptParamSchema,
@@ -178,7 +213,14 @@ const questionRoutes = createProtectedApp().get(
       BigInt(query.quizId),
       log,
     );
-    return ok({ set, locale }, questions, "quiz.questionListSuccess");
+    return successResponse(
+      set,
+      questions,
+      { key: "quiz.questionListSuccess" },
+      200,
+      undefined,
+      locale,
+    );
   },
   {
     query: GetQuestionsQuerySchema,
@@ -198,7 +240,14 @@ const answerRoutes = createProtectedApp()
         BigInt(query.quizAttemptId),
         log,
       );
-      return ok({ set, locale }, answers, "quizAnswer.listSuccess");
+      return successResponse(
+        set,
+        answers,
+        { key: "quizAnswer.listSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       query: GetQuizAnswersQuerySchema,
@@ -210,7 +259,14 @@ const answerRoutes = createProtectedApp()
     "/",
     async ({ body, set, log, locale }) => {
       const answer = await StudentQuizService.createAnswer(body, log);
-      return ok({ set, locale }, answer, "quizAnswer.createSuccess", 201);
+      return successResponse(
+        set,
+        answer,
+        { key: "quizAnswer.createSuccess" },
+        201,
+        undefined,
+        locale,
+      );
     },
     {
       body: CreateQuizAnswerSchema,
@@ -231,7 +287,14 @@ const answerRoutes = createProtectedApp()
         body,
         log,
       );
-      return ok({ set, locale }, answer, "quizAnswer.updateSuccess");
+      return successResponse(
+        set,
+        answer,
+        { key: "quizAnswer.updateSuccess" },
+        200,
+        undefined,
+        locale,
+      );
     },
     {
       params: QuizAnswerParamSchema,
@@ -253,7 +316,14 @@ const answerRoutes = createProtectedApp()
         user.id,
         log,
       );
-      return ok({ set, locale }, answers, "quizAnswer.bulkCreateSuccess", 201);
+      return successResponse(
+        set,
+        answers,
+        { key: "quizAnswer.bulkCreateSuccess" },
+        201,
+        undefined,
+        locale,
+      );
     },
     {
       body: CreateBulkQuizAnswerSchema,

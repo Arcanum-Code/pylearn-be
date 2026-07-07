@@ -44,14 +44,32 @@ const ANSWER_SELECT = {
   createdAt: true,
   updatedAt: true,
   quizQuestion: { select: { questionText: true } },
+  items: {
+    select: {
+      id: true,
+      keywordId: true,
+      answerText: true,
+      isCorrect: true,
+    },
+  },
 } as const;
 
 export const STUDENT_QUESTION_SELECT = {
   id: true,
   quizId: true,
   questionText: true,
+  answerText: true,
   maxScore: true,
   questionOrder: true,
+  keywords: {
+    select: {
+      id: true,
+      blankOrder: true,
+      startIndex: true,
+      endIndex: true,
+    },
+    orderBy: { blankOrder: "asc" },
+  },
 } as const;
 
 // ─────────────────────────────────────────────
@@ -90,6 +108,13 @@ function mapAnswer(answer: AnswerRecord) {
     answeredAt: answer.answeredAt.toISOString(),
     createdAt: answer.createdAt.toISOString(),
     updatedAt: answer.updatedAt.toISOString(),
+    items:
+      answer.items?.map((item) => ({
+        id: item.id.toString(),
+        keywordId: item.keywordId.toString(),
+        answerText: item.answerText,
+        isCorrect: item.isCorrect,
+      })) ?? [],
   };
 }
 
@@ -339,22 +364,39 @@ export abstract class StudentQuizService {
 
     const totalQuestions = attempt.quiz._count.questions;
 
-    const correctAnswers = await prisma.quizAnswer.findMany({
+    // Fetch all student answers for this attempt
+    const answers = await prisma.quizAnswer.findMany({
       where: {
         quizAttemptId: attemptId,
-        isCorrect: true,
       },
-      select: {
+      include: {
         quizQuestion: {
-          select: { maxScore: true },
+          include: { keywords: true },
         },
+        items: true,
       },
     });
 
-    const allScore = correctAnswers.reduce(
-      (sum, ans) => sum + ans.quizQuestion.maxScore,
-      0,
-    );
+    let allScore = 0;
+
+    for (const ans of answers) {
+      const q = ans.quizQuestion;
+      const isBlankQuestion = q.keywords.length > 0;
+
+      if (isBlankQuestion) {
+        // Average point scoring: (correctCount / totalBlanks) * maxScore
+        const correctCount = ans.items.filter((item) => item.isCorrect).length;
+        const totalBlanks = q.keywords.length;
+        const points =
+          totalBlanks > 0 ? (correctCount / totalBlanks) * q.maxScore : 0;
+        allScore += points;
+      } else {
+        if (ans.isCorrect) {
+          allScore += q.maxScore;
+        }
+      }
+    }
+
     const finalScore = totalQuestions > 0 ? allScore / totalQuestions : 0;
 
     const finalizedAttempt = await prisma.quizAttempt.update({
@@ -445,17 +487,22 @@ export abstract class StudentQuizService {
       include: {
         quiz: {
           include: {
-            questions: { orderBy: { questionOrder: "asc" } },
+            questions: {
+              orderBy: { questionOrder: "asc" },
+              include: { keywords: { orderBy: { blankOrder: "asc" } } },
+            },
           },
         },
-        answers: true,
+        answers: {
+          include: { items: true },
+        },
       },
     });
 
     if (!attempt) {
       log.warn(
         { attemptId, userId: ctx.userId, role: ctx.userRole },
-        "Student result fetch blocked",
+        "student result fetch blocked",
       );
       throw new QuizAttemptContextException(
         "Attempt not found or you do not have permission to view it.",
@@ -473,6 +520,24 @@ export abstract class StudentQuizService {
         (a) => a.quizQuestionId === question.id,
       );
 
+      const isBlankQuestion = question.keywords.length > 0;
+      let blanksBreakdown: any[] = [];
+
+      if (isBlankQuestion) {
+        blanksBreakdown = question.keywords.map((kw) => {
+          const userItem = userAnswerRecord?.items.find(
+            (item) => item.keywordId === kw.id,
+          );
+          return {
+            keywordId: kw.id.toString(),
+            blankOrder: kw.blankOrder,
+            userAnswer: userItem ? userItem.answerText : null,
+            correctAnswer: kw.correctAnswer,
+            isCorrect: userItem ? userItem.isCorrect : false,
+          };
+        });
+      }
+
       return {
         questionId: question.id.toString(),
         questionText: question.questionText,
@@ -480,6 +545,7 @@ export abstract class StudentQuizService {
         userAnswer: userAnswerRecord?.answerText ?? null,
         correctAnswer: question.answerText,
         isCorrect: userAnswerRecord?.isCorrect ?? false,
+        ...(isBlankQuestion && { blanks: blanksBreakdown }),
       };
     });
 
@@ -521,13 +587,36 @@ export abstract class StudentQuizService {
       "Student questions retrieved successfully",
     );
 
-    return questions.map((q) => ({
-      id: q.id.toString(),
-      quizId: q.quizId.toString(),
-      questionText: q.questionText,
-      maxScore: q.maxScore,
-      questionOrder: q.questionOrder,
-    }));
+    return questions.map((q) => {
+      let blankQuestionText = q.questionText;
+      if (q.keywords && q.keywords.length > 0) {
+        let result = "";
+        let lastIndex = 0;
+        const sortedKeywords = [...q.keywords].sort(
+          (a, b) => a.startIndex - b.startIndex,
+        );
+        sortedKeywords.forEach((kw) => {
+          result += q.answerText.slice(lastIndex, kw.startIndex);
+          result += `[blank_${kw.blankOrder}]`;
+          lastIndex = kw.endIndex;
+        });
+        result += q.answerText.slice(lastIndex);
+        blankQuestionText = result;
+      }
+
+      return {
+        id: q.id.toString(),
+        quizId: q.quizId.toString(),
+        questionText: q.questionText,
+        blankQuestionText: blankQuestionText,
+        maxScore: q.maxScore,
+        questionOrder: q.questionOrder,
+        blanks: q.keywords.map((b) => ({
+          keywordId: b.id.toString(),
+          blankOrder: b.blankOrder,
+        })),
+      };
+    });
   }
 
   // Answer methods
@@ -555,22 +644,77 @@ export abstract class StudentQuizService {
       "Creating student answer",
     );
 
+    // Fetch the question and its keywords
     const question = await prisma.quizQuestion.findUniqueOrThrow({
       where: { id: quizQuestionId },
-      select: { answerText: true },
+      include: { keywords: true },
     });
 
-    const isCorrect =
-      normalizeAnswer(question.answerText) === normalizeAnswer(data.answerText);
+    let isCorrect = false;
+    const preparedItems: {
+      keywordId: bigint;
+      answerText: string;
+      isCorrect: boolean;
+    }[] = [];
+    const isBlankQuestion = question.keywords.length > 0;
+    const studentAnswerText = data.answerText ?? "";
 
-    const answer = await prisma.quizAnswer.create({
-      data: {
-        quizAttemptId,
-        quizQuestionId,
-        answerText: data.answerText,
-        isCorrect,
-      },
-      select: ANSWER_SELECT,
+    if (isBlankQuestion) {
+      const submittedItems = data.items ?? [];
+      let correctBlanks = 0;
+
+      for (const kw of question.keywords) {
+        const submitted = submittedItems.find(
+          (item) => item.keywordId === kw.id.toString(),
+        );
+        const submittedText = submitted ? submitted.answerText : "";
+        const correct =
+          normalizeAnswer(kw.correctAnswer) === normalizeAnswer(submittedText);
+        if (correct) {
+          correctBlanks++;
+        }
+        preparedItems.push({
+          keywordId: kw.id,
+          answerText: submittedText,
+          isCorrect: correct,
+        });
+      }
+
+      isCorrect = correctBlanks === question.keywords.length;
+    } else {
+      isCorrect =
+        normalizeAnswer(question.answerText) ===
+        normalizeAnswer(studentAnswerText);
+    }
+
+    const answer = await prisma.$transaction(async (tx) => {
+      // Delete existing answer if any
+      await tx.quizAnswer.deleteMany({
+        where: { quizAttemptId, quizQuestionId },
+      });
+
+      const newAnswer = await tx.quizAnswer.create({
+        data: {
+          quizAttemptId,
+          quizQuestionId,
+          answerText: studentAnswerText,
+          isCorrect,
+          ...(isBlankQuestion && {
+            items: {
+              create: preparedItems.map((item) => ({
+                keywordId: item.keywordId,
+                answerText: item.answerText,
+                isCorrect: item.isCorrect,
+              })),
+            },
+          }),
+        },
+      });
+
+      return tx.quizAnswer.findUniqueOrThrow({
+        where: { id: newAnswer.id },
+        select: ANSWER_SELECT,
+      });
     });
 
     log.info(
@@ -610,56 +754,93 @@ export abstract class StudentQuizService {
 
     const validQuestions = await prisma.quizQuestion.findMany({
       where: { quizId: quizId },
-      select: { id: true, answerText: true },
+      include: { keywords: true },
     });
 
-    const questionMap = new Map(
-      validQuestions.map((q) => [q.id, q.answerText]),
-    );
-
-    const recordsToInsert = data.answers.map((incoming) => {
-      const questionId = BigInt(incoming.quizQuestionId);
-      const correctAnswerText = questionMap.get(questionId);
-
-      if (correctAnswerText === undefined) {
-        throw new QuizAttemptValidationError(
-          `Question ID ${incoming.quizQuestionId} does not belong to the requested quiz.`,
-        );
-      }
-
-      const isCorrect =
-        normalizeAnswer(correctAnswerText) ===
-        normalizeAnswer(incoming.answerText);
-
-      return {
-        quizAttemptId,
-        quizQuestionId: questionId,
-        answerText: incoming.answerText,
-        isCorrect,
-      };
-    });
+    const questionMap = new Map(validQuestions.map((q) => [q.id, q]));
 
     const savedAnswers = await prisma.$transaction(async (tx) => {
-      const targetQuestionIds = recordsToInsert.map((r) => r.quizQuestionId);
-      await tx.quizAnswer.deleteMany({
-        where: {
-          quizAttemptId,
-          quizQuestionId: { in: targetQuestionIds },
-        },
-      });
+      const results: AnswerRecord[] = [];
 
-      await tx.quizAnswer.createMany({
-        data: recordsToInsert,
-      });
+      for (const incoming of data.answers) {
+        const questionId = BigInt(incoming.quizQuestionId);
+        const question = questionMap.get(questionId);
 
-      return tx.quizAnswer.findMany({
-        where: {
-          quizAttemptId,
-          quizQuestionId: { in: targetQuestionIds },
-        },
-        select: ANSWER_SELECT,
-        orderBy: { answeredAt: "asc" },
-      });
+        if (!question) {
+          throw new QuizAttemptValidationError(
+            `Question ID ${incoming.quizQuestionId} does not belong to the requested quiz.`,
+          );
+        }
+
+        const isBlankQuestion = question.keywords.length > 0;
+        let isCorrect = false;
+        const preparedItems: {
+          keywordId: bigint;
+          answerText: string;
+          isCorrect: boolean;
+        }[] = [];
+        const studentAnswerText = incoming.answerText ?? "";
+
+        if (isBlankQuestion) {
+          const submittedItems = incoming.items ?? [];
+          let correctBlanks = 0;
+
+          for (const kw of question.keywords) {
+            const submitted = submittedItems.find(
+              (item) => item.keywordId === kw.id.toString(),
+            );
+            const submittedText = submitted ? submitted.answerText : "";
+            const correct =
+              normalizeAnswer(kw.correctAnswer) ===
+              normalizeAnswer(submittedText);
+            if (correct) {
+              correctBlanks++;
+            }
+            preparedItems.push({
+              keywordId: kw.id,
+              answerText: submittedText,
+              isCorrect: correct,
+            });
+          }
+          isCorrect = correctBlanks === question.keywords.length;
+        } else {
+          isCorrect =
+            normalizeAnswer(question.answerText) ===
+            normalizeAnswer(studentAnswerText);
+        }
+
+        // Delete existing answer
+        await tx.quizAnswer.deleteMany({
+          where: { quizAttemptId, quizQuestionId: questionId },
+        });
+
+        const newAnswer = await tx.quizAnswer.create({
+          data: {
+            quizAttemptId,
+            quizQuestionId: questionId,
+            answerText: studentAnswerText,
+            isCorrect,
+            ...(isBlankQuestion && {
+              items: {
+                create: preparedItems.map((item) => ({
+                  keywordId: item.keywordId,
+                  answerText: item.answerText,
+                  isCorrect: item.isCorrect,
+                })),
+              },
+            }),
+          },
+        });
+
+        const loadedAnswer = await tx.quizAnswer.findUniqueOrThrow({
+          where: { id: newAnswer.id },
+          select: ANSWER_SELECT,
+        });
+
+        results.push(loadedAnswer);
+      }
+
+      return results;
     });
 
     log.info(
@@ -679,24 +860,74 @@ export abstract class StudentQuizService {
 
     const existing = await prisma.quizAnswer.findUniqueOrThrow({
       where: { id: answerId },
-      select: {
+      include: {
         quizQuestion: {
-          select: { answerText: true },
+          include: { keywords: true },
         },
       },
     });
 
-    const isCorrect =
-      normalizeAnswer(existing.quizQuestion.answerText) ===
-      normalizeAnswer(data.answerText);
+    const isBlankQuestion = existing.quizQuestion.keywords.length > 0;
+    let isCorrect = false;
+    const preparedItems: {
+      keywordId: bigint;
+      answerText: string;
+      isCorrect: boolean;
+    }[] = [];
+    const studentAnswerText = data.answerText ?? existing.answerText;
 
-    const answer = await prisma.quizAnswer.update({
-      where: { id: answerId },
-      data: {
-        answerText: data.answerText,
-        isCorrect,
-      },
-      select: ANSWER_SELECT,
+    if (isBlankQuestion) {
+      const submittedItems = data.items ?? [];
+      let correctBlanks = 0;
+
+      for (const kw of existing.quizQuestion.keywords) {
+        const submitted = submittedItems.find(
+          (item) => item.keywordId === kw.id.toString(),
+        );
+        const submittedText = submitted ? submitted.answerText : "";
+        const correct =
+          normalizeAnswer(kw.correctAnswer) === normalizeAnswer(submittedText);
+        if (correct) {
+          correctBlanks++;
+        }
+        preparedItems.push({
+          keywordId: kw.id,
+          answerText: submittedText,
+          isCorrect: correct,
+        });
+      }
+      isCorrect = correctBlanks === existing.quizQuestion.keywords.length;
+    } else {
+      isCorrect =
+        normalizeAnswer(existing.quizQuestion.answerText) ===
+        normalizeAnswer(studentAnswerText);
+    }
+
+    const answer = await prisma.$transaction(async (tx) => {
+      if (isBlankQuestion) {
+        // Delete old items
+        await tx.quizAnswerItem.deleteMany({
+          where: { quizAnswerId: answerId },
+        });
+      }
+
+      return tx.quizAnswer.update({
+        where: { id: answerId },
+        data: {
+          answerText: studentAnswerText,
+          isCorrect,
+          ...(isBlankQuestion && {
+            items: {
+              create: preparedItems.map((item) => ({
+                keywordId: item.keywordId,
+                answerText: item.answerText,
+                isCorrect: item.isCorrect,
+              })),
+            },
+          }),
+        },
+        select: ANSWER_SELECT,
+      });
     });
 
     log.info(

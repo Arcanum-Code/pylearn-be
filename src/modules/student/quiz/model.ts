@@ -35,6 +35,17 @@ export const QuizResultQuestionSafe = z.object({
   userAnswer: z.string().nullable(),
   correctAnswer: z.string(),
   isCorrect: z.boolean(),
+  blanks: z
+    .array(
+      z.object({
+        keywordId: z.string(),
+        blankOrder: z.number(),
+        userAnswer: z.string().nullable(),
+        correctAnswer: z.string(),
+        isCorrect: z.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 export const QuizResultSafe = z.object({
@@ -89,8 +100,15 @@ export const QuizQuestionWithoutAnswerText = z.object({
   id: z.string(),
   quizId: z.string(),
   questionText: z.string(),
+  blankQuestionText: z.string(),
   maxScore: z.number(),
   questionOrder: z.number(),
+  blanks: z.array(
+    z.object({
+      keywordId: z.string(),
+      blankOrder: z.number(),
+    }),
+  ),
 });
 
 // ==========================================
@@ -106,6 +124,16 @@ export const QuizAnswerSafe = z.object({
   answeredAt: z.string().datetime(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        keywordId: z.string(),
+        answerText: z.string(),
+        isCorrect: z.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 // ==========================================

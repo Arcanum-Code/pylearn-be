@@ -241,6 +241,7 @@ model QuizAnswerItem {
   quizAnswer      QuizAnswer      @relation(fields: [quizAnswerId], references: [id], onDelete: Cascade)
   keywordId       BigInt
   keyword         QuestionKeyword @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  answerText      String          @default("") @db.Text
   isCorrect       Boolean
   createdAt       DateTime        @default(now())
 

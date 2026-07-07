@@ -37,11 +37,27 @@ export const GetQuizAnswersQuerySchema = z.object({
 export const CreateQuizAnswerSchema = z.object({
   quizAttemptId: z.string().min(1, "Quiz Attempt ID is required"),
   quizQuestionId: z.string().min(1, "Quiz Question ID is required"),
-  answerText: z.string().min(1, "Answer text is required"),
+  answerText: z.string().optional(),
+  items: z
+    .array(
+      z.object({
+        keywordId: z.string().min(1, "Keyword ID is required"),
+        answerText: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export const UpdateQuizAnswerSchema = z.object({
-  answerText: z.string().min(1, "Answer text cannot be empty"),
+  answerText: z.string().optional(),
+  items: z
+    .array(
+      z.object({
+        keywordId: z.string().min(1, "Keyword ID is required"),
+        answerText: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export const QuizAnswerParamSchema = z.object({
@@ -55,7 +71,15 @@ export const CreateBulkQuizAnswerSchema = z.object({
     .array(
       z.object({
         quizQuestionId: z.string().min(1, "Question ID is required"),
-        answerText: z.string().min(1, "Answer text cannot be empty"),
+        answerText: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              keywordId: z.string().min(1, "Keyword ID is required"),
+              answerText: z.string(),
+            }),
+          )
+          .optional(),
       }),
     )
     .min(1, "At least one answer must be submitted"),

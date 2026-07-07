@@ -6,7 +6,7 @@ import {
   createTestRoleWithPermissions,
   randomIp,
   resetDatabase,
-} from "../test_utils";
+} from "../../test_utils";
 
 async function setupQuizHierarchy(lecturerId: string) {
   const group = await prisma.group.create({
@@ -17,7 +17,7 @@ async function setupQuizHierarchy(lecturerId: string) {
     data: {
       groupId: group.id,
       title: "Bulk Operations Quiz",
-      publishedAt: new Date().toISOString(),
+      isPublished: true,
       levelNumber: 1,
     },
   });
@@ -56,7 +56,7 @@ describe("POST /quizzes/answers/bulk", () => {
 
   it("should process bulk answers and evaluate correctness accurately", async () => {
     const role = await createTestRoleWithPermissions("BulkAnswerSubmitter", [
-      { featureName: "quiz_management", action: "create" },
+      { featureName: "student_quiz_access", action: "create" },
     ]);
 
     const { user: student, authHeaders } = await createAuthenticatedUser({
@@ -89,7 +89,7 @@ describe("POST /quizzes/answers/bulk", () => {
     };
 
     const res = await app.handle(
-      new Request("http://localhost/quizzes/answers/bulk", {
+      new Request("http://localhost/student/quizzes/answers/bulk", {
         method: "POST",
         headers: {
           ...authHeaders,
@@ -123,7 +123,7 @@ describe("POST /quizzes/answers/bulk", () => {
 
   it("should reject submission if the quiz attempt is already submitted/closed", async () => {
     const role = await createTestRoleWithPermissions("BulkAnswerSubmitter", [
-      { featureName: "quiz_management", action: "create" },
+      { featureName: "student_quiz_access", action: "create" },
     ]);
 
     const { user: student, authHeaders } = await createAuthenticatedUser({
@@ -152,7 +152,7 @@ describe("POST /quizzes/answers/bulk", () => {
     };
 
     const res = await app.handle(
-      new Request("http://localhost/quizzes/answers/bulk", {
+      new Request("http://localhost/student/quizzes/answers/bulk", {
         method: "POST",
         headers: {
           ...authHeaders,
@@ -168,7 +168,7 @@ describe("POST /quizzes/answers/bulk", () => {
 
   it("should reject if a question does not belong to the targeted quiz context", async () => {
     const role = await createTestRoleWithPermissions("BulkAnswerSubmitter", [
-      { featureName: "quiz_management", action: "create" },
+      { featureName: "student_quiz_access", action: "create" },
     ]);
 
     const { user: student, authHeaders } = await createAuthenticatedUser({
@@ -182,7 +182,7 @@ describe("POST /quizzes/answers/bulk", () => {
         groupId: group.id,
         title: "Rogue Quiz",
         levelNumber: 2,
-        publishedAt: new Date().toISOString(),
+        isPublished: true,
       },
     });
 
@@ -212,7 +212,7 @@ describe("POST /quizzes/answers/bulk", () => {
     };
 
     const res = await app.handle(
-      new Request("http://localhost/quizzes/answers/bulk", {
+      new Request("http://localhost/student/quizzes/answers/bulk", {
         method: "POST",
         headers: {
           ...authHeaders,

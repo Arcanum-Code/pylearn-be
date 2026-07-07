@@ -2,10 +2,8 @@ import {
   QuizService,
   QuizQuestionService,
   QuestionKeywordService,
-  QuizAttemptService,
-  QuizAnswerService,
 } from "./service";
-import { GetAllAttemptsResultsQuerySchema, QuizModel } from "./model";
+import { QuizModel } from "./model";
 import {
   CreateQuizSchema,
   UpdateQuizSchema,
@@ -19,25 +17,12 @@ import {
   CreateKeywordSchema,
   UpdateKeywordSchema,
   KeywordParamSchema,
-  GetQuizAttemptsQuerySchema,
-  QuizAttemptParamSchema,
-  CreateQuizAttemptSchema,
-  GetQuizAnswersQuerySchema,
-  CreateQuizAnswerSchema,
-  QuizAnswerParamSchema,
-  UpdateQuizAnswerSchema,
-  CreateBulkQuizAnswerSchema,
 } from "./schema";
 import { successResponse, errorResponse } from "@/libs/response";
 import { createBaseApp, createProtectedApp } from "@/libs/base";
 import { Prisma } from "@generated/prisma";
 import { hasPermission } from "@/middleware/permission";
-import {
-  InvalidTimeRangeError,
-  CannotDeleteQuestionError,
-  QuizAttemptValidationError,
-  QuizAttemptContextException,
-} from "./error";
+import { InvalidTimeRangeError, CannotDeleteQuestionError } from "./error";
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -216,24 +201,6 @@ const questionRoutes = createProtectedApp()
       },
       beforeHandle: hasPermission(FEATURE, "delete"),
     },
-  )
-  .get(
-    "/attempt",
-    async ({ query, set, log, locale }) => {
-      const questions = await QuizQuestionService.getStudentQuestions(
-        BigInt(query.quizId),
-        log,
-      );
-      return ok({ set, locale }, questions, "quiz.questionListSuccess");
-    },
-    {
-      query: GetQuestionsQuerySchema,
-      response: {
-        200: QuizModel.questionsWithoutAnswer,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
   );
 
 const keywordRoutes = createProtectedApp()
@@ -310,222 +277,6 @@ const keywordRoutes = createProtectedApp()
     },
   );
 
-const attemptRoutes = createProtectedApp()
-  .get(
-    "/",
-    async ({ query, set, log, locale }) => {
-      const attempts = await QuizAttemptService.getAttempts(
-        query.quizId ? BigInt(query.quizId) : undefined,
-        query.studentId,
-        log,
-      );
-      return ok({ set, locale }, attempts, "quizAttempt.listSuccess");
-    },
-    {
-      query: GetQuizAttemptsQuerySchema,
-      response: { 200: QuizModel.attempts, 500: QuizModel.error },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .get(
-    "/:id",
-    async ({ params, set, log, locale }) => {
-      const attempt = await QuizAttemptService.getAttempt(
-        BigInt(params.id),
-        log,
-      );
-      return ok({ set, locale }, attempt, "quizAttempt.getSuccess");
-    },
-    {
-      params: QuizAttemptParamSchema,
-      response: {
-        200: QuizModel.attempt,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .post(
-    "/",
-    async ({ body, user, set, log, locale }) => {
-      const attempt = await QuizAttemptService.createAttempt(
-        user.id,
-        body,
-        log,
-      );
-      return ok({ set, locale }, attempt, "quizAttempt.createSuccess", 201);
-    },
-    {
-      body: CreateQuizAttemptSchema,
-      response: {
-        201: QuizModel.createAttemptResult,
-        400: QuizModel.validationError,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "create"),
-    },
-  )
-  .patch(
-    "/:id/submit",
-    async ({ params, user, set, log, locale }) => {
-      const attempt = await QuizAttemptService.submitAttempt(
-        BigInt(params.id),
-        user.id,
-        log,
-      );
-
-      return ok({ set, locale }, attempt, "quizAttempt.submitSuccess");
-    },
-    {
-      params: QuizAttemptParamSchema,
-      response: {
-        200: QuizModel.submitAttemptResult,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "update"),
-    },
-  )
-  .get(
-    "/status/me",
-    async ({ query, user, set, log, locale }) => {
-      const progress = await QuizAttemptService.getProgress(
-        BigInt(query.quizId),
-        user.id,
-        log,
-      );
-
-      return ok({ set, locale }, progress, "quizAttempt.progressSuccess");
-    },
-    {
-      query: GetQuestionsQuerySchema,
-      response: {
-        200: QuizModel.quizProgress,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .get(
-    "/results",
-    async ({ query, set, log, locale }) => {
-      const results = await QuizAttemptService.getAllAttemptsResults(
-        query,
-        log,
-      );
-
-      return ok({ set, locale }, results, "quizAttempt.bulkResultsSuccess");
-    },
-    {
-      query: GetAllAttemptsResultsQuerySchema,
-      response: {
-        200: QuizModel.quizAllAttemptResult,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .get(
-    "/:id/results",
-    async ({ params, user, set, log, locale }) => {
-      const results = await QuizAttemptService.getAttemptResults(
-        params.id,
-        user,
-        log,
-      );
-
-      return ok({ set, locale }, results, "quizAttempt.resultsSuccess");
-    },
-    {
-      params: QuizAttemptParamSchema,
-      response: {
-        200: QuizModel.quizAttemptResult,
-        400: QuizModel.error,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  );
-
-const answerRoutes = createProtectedApp()
-  .get(
-    "/",
-    async ({ query, set, log, locale }) => {
-      const answers = await QuizAnswerService.getAnswers(
-        BigInt(query.quizAttemptId),
-        log,
-      );
-      return ok({ set, locale }, answers, "quizAnswer.listSuccess");
-    },
-    {
-      query: GetQuizAnswersQuerySchema,
-      response: { 200: QuizModel.answers, 500: QuizModel.error },
-      beforeHandle: hasPermission(FEATURE, "read"),
-    },
-  )
-  .post(
-    "/",
-    async ({ body, set, log, locale }) => {
-      const answer = await QuizAnswerService.createAnswer(body, log);
-      return ok({ set, locale }, answer, "quizAnswer.createSuccess", 201);
-    },
-    {
-      body: CreateQuizAnswerSchema,
-      response: {
-        201: QuizModel.createAnswerResult,
-        400: QuizModel.validationError,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "create"),
-    },
-  )
-  .patch(
-    "/:id",
-    async ({ params, body, set, log, locale }) => {
-      const answer = await QuizAnswerService.updateAnswer(
-        BigInt(params.id),
-        body,
-        log,
-      );
-      return ok({ set, locale }, answer, "quizAnswer.updateSuccess");
-    },
-    {
-      params: QuizAnswerParamSchema,
-      body: UpdateQuizAnswerSchema,
-      response: {
-        200: QuizModel.updateAnswerResult,
-        400: QuizModel.validationError,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "update"),
-    },
-  )
-  .post(
-    "/bulk",
-    async ({ body, user, set, log, locale }) => {
-      const answers = await QuizAnswerService.createBulkAnswers(
-        body,
-        user.id,
-        log,
-      );
-      return ok({ set, locale }, answers, "quizAnswer.bulkCreateSuccess", 201);
-    },
-    {
-      body: CreateBulkQuizAnswerSchema,
-      response: {
-        201: QuizModel.createBulkAnswerResult,
-        400: QuizModel.validationError,
-        404: QuizModel.error,
-        500: QuizModel.error,
-      },
-      beforeHandle: hasPermission(FEATURE, "create"),
-    },
-  );
-
 // ─────────────────────────────────────────────
 // App assembly
 // ─────────────────────────────────────────────
@@ -537,8 +288,6 @@ export const quizzes = createBaseApp({ tags: ["Quizzes"] }).group(
       .use(quizRoutes)
       .group("/questions", (app) => app.use(questionRoutes))
       .group("/keywords", (app) => app.use(keywordRoutes))
-      .group("/attempts", (app) => app.use(attemptRoutes))
-      .group("/answers", (app) => app.use(answerRoutes))
       .onError(({ error, set, locale }) => {
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
           if (error.code === "P2025") {
@@ -562,14 +311,9 @@ export const quizzes = createBaseApp({ tags: ["Quizzes"] }).group(
         }
         if (
           error instanceof InvalidTimeRangeError ||
-          error instanceof CannotDeleteQuestionError ||
-          error instanceof QuizAttemptValidationError
+          error instanceof CannotDeleteQuestionError
         ) {
           return errorResponse(set, 400, error.message, null, locale);
-        }
-
-        if (error instanceof QuizAttemptContextException) {
-          return errorResponse(set, 403, error.message, null, locale);
         }
 
         console.log("ERROR: ", error);

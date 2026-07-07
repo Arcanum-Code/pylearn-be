@@ -7,7 +7,7 @@ import {
   createAuthenticatedUser,
   createTestRoleWithPermissions,
   randomIp,
-} from "../test_utils";
+} from "../../test_utils";
 
 async function createMockQuestion(userId: string) {
   const group = await prisma.group.create({
@@ -18,7 +18,7 @@ async function createMockQuestion(userId: string) {
     data: {
       groupId: group.id,
       title: "Answer Quiz",
-      publishedAt: new Date().toISOString(),
+      isPublished: true,
       levelNumber: 1,
     },
   });
@@ -51,7 +51,7 @@ describe("Quiz Answers Management Integration Tests", () => {
   describe("POST /quizzes/answers", () => {
     it("should create correct answer", async () => {
       const role = await createTestRoleWithPermissions("AnswerCreatorRole", [
-        { featureName: "quiz_management", action: "create" },
+        { featureName: "student_quiz_access", action: "create" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -67,7 +67,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/answers", {
+        new Request("http://localhost/student/quizzes/answers", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -92,7 +92,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
     it("should strip out HTML rich text markup tags and match correctly", async () => {
       const role = await createTestRoleWithPermissions("AnswerCreatorRole", [
-        { featureName: "quiz_management", action: "create" },
+        { featureName: "student_quiz_access", action: "create" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -108,7 +108,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/answers", {
+        new Request("http://localhost/student/quizzes/answers", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -135,7 +135,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
     it("should create incorrect answer", async () => {
       const role = await createTestRoleWithPermissions("AnswerCreatorRole", [
-        { featureName: "quiz_management", action: "create" },
+        { featureName: "student_quiz_access", action: "create" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -151,7 +151,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/answers", {
+        new Request("http://localhost/student/quizzes/answers", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -173,7 +173,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
     it("should reject without permission", async () => {
       const role = await createTestRoleWithPermissions("AnswerReaderRole", [
-        { featureName: "quiz_management", action: "read" },
+        { featureName: "student_quiz_access", action: "read" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -189,7 +189,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/answers", {
+        new Request("http://localhost/student/quizzes/answers", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -211,7 +211,7 @@ describe("Quiz Answers Management Integration Tests", () => {
   describe("GET /quizzes/answers", () => {
     it("should return answers", async () => {
       const role = await createTestRoleWithPermissions("AnswerReaderRole", [
-        { featureName: "quiz_management", action: "read" },
+        { featureName: "student_quiz_access", action: "read" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -237,7 +237,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/answers?quizAttemptId=${attempt.id}`,
+          `http://localhost/student/quizzes/answers?quizAttemptId=${attempt.id}`,
           {
             method: "GET",
             headers: {
@@ -258,7 +258,7 @@ describe("Quiz Answers Management Integration Tests", () => {
   describe("PATCH /quizzes/answers/:id", () => {
     it("should update answer and evaluate accuracy logic automatically", async () => {
       const role = await createTestRoleWithPermissions("AnswerUpdaterRole", [
-        { featureName: "quiz_management", action: "update" },
+        { featureName: "student_quiz_access", action: "update" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -283,7 +283,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/answers/${answer.id}`, {
+        new Request(`http://localhost/student/quizzes/answers/${answer.id}`, {
           method: "PATCH",
           headers: {
             ...authHeaders,
@@ -305,7 +305,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
     it("should strip out HTML markup tags during update modifications and grade accurately", async () => {
       const role = await createTestRoleWithPermissions("AnswerUpdaterRole", [
-        { featureName: "quiz_management", action: "update" },
+        { featureName: "student_quiz_access", action: "update" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -330,7 +330,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/answers/${answer.id}`, {
+        new Request(`http://localhost/student/quizzes/answers/${answer.id}`, {
           method: "PATCH",
           headers: {
             ...authHeaders,
@@ -354,7 +354,7 @@ describe("Quiz Answers Management Integration Tests", () => {
 
     it("should return 404 for non-existent answer", async () => {
       const role = await createTestRoleWithPermissions("AnswerUpdaterRole", [
-        { featureName: "quiz_management", action: "update" },
+        { featureName: "student_quiz_access", action: "update" },
       ]);
 
       const { authHeaders } = await createAuthenticatedUser({
@@ -362,7 +362,7 @@ describe("Quiz Answers Management Integration Tests", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/answers/999999", {
+        new Request("http://localhost/student/quizzes/answers/999999", {
           method: "PATCH",
           headers: {
             ...authHeaders,

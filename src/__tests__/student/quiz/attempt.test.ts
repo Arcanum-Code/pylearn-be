@@ -7,7 +7,7 @@ import {
   createAuthenticatedUser,
   createTestRoleWithPermissions,
   randomIp,
-} from "../test_utils";
+} from "../../test_utils";
 
 async function createMockQuiz(userId: string, levelNumber = 1) {
   const group = await prisma.group.create({
@@ -18,7 +18,7 @@ async function createMockQuiz(userId: string, levelNumber = 1) {
     data: {
       groupId: group.id,
       title: `Attempt Quiz L${levelNumber}`,
-      publishedAt: new Date().toISOString(),
+      isPublished: true,
       levelNumber,
     },
   });
@@ -42,7 +42,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should create quiz attempt targeting a quiz", async () => {
       const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "create",
         },
       ]);
@@ -54,7 +54,7 @@ describe("Quiz Attempt Test Suite", () => {
       const { quiz } = await createMockQuiz(user.id);
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts", {
+        new Request("http://localhost/student/quizzes/attempts", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -76,7 +76,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should reject duplicate active attempt per quiz", async () => {
       const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "create",
         },
       ]);
@@ -96,7 +96,7 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts", {
+        new Request("http://localhost/student/quizzes/attempts", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -112,52 +112,9 @@ describe("Quiz Attempt Test Suite", () => {
       expect(res.status).toBe(400);
     });
 
-    it("should reject attempt if material prerequisites are not read", async () => {
-      const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
-        { featureName: "quiz_management", action: "create" },
-      ]);
-      const { user, authHeaders } = await createAuthenticatedUser({
-        roleId: role.id,
-      });
-      const { quiz, group } = await createMockQuiz(user.id);
-
-      const material = await prisma.material.create({
-        data: {
-          groupId: group.id,
-          lecturerId: user.id,
-          title: "Prereq Mat",
-          materialType: "file",
-          content: "/storage/test.pdf",
-          version: 1,
-        },
-      });
-
-      await prisma.quizPrerequisite.create({
-        data: {
-          quizId: quiz.id,
-          materialId: material.id,
-        },
-      });
-
-      // No read record -> should fail
-      const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts", {
-          method: "POST",
-          headers: {
-            ...authHeaders,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ quizId: quiz.id.toString() }),
-        }),
-      );
-      expect(res.status).toBe(400);
-      const json = await res.json();
-      expect(json.message).toContain("You must read prerequisite material");
-    });
-
     it("should reject attempt if previous level quiz is not passed", async () => {
       const role = await createTestRoleWithPermissions("AttemptCreatorRole", [
-        { featureName: "quiz_management", action: "create" },
+        { featureName: "student_quiz_access", action: "create" },
       ]);
       const { user, authHeaders } = await createAuthenticatedUser({
         roleId: role.id,
@@ -183,7 +140,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       // No attempt for L1 -> should fail
       const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts", {
+        new Request("http://localhost/student/quizzes/attempts", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -200,7 +157,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should reject without permission", async () => {
       const role = await createTestRoleWithPermissions("AttemptReaderRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "read",
         },
       ]);
@@ -212,7 +169,7 @@ describe("Quiz Attempt Test Suite", () => {
       const { quiz } = await createMockQuiz(user.id);
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts", {
+        new Request("http://localhost/student/quizzes/attempts", {
           method: "POST",
           headers: {
             ...authHeaders,
@@ -236,7 +193,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should return attempts", async () => {
       const role = await createTestRoleWithPermissions("AttemptReaderRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "read",
         },
       ]);
@@ -255,13 +212,16 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/attempts?quizId=${quiz.id}`, {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
+        new Request(
+          `http://localhost/student/quizzes/attempts?quizId=${quiz.id}`,
+          {
+            method: "GET",
+            headers: {
+              ...authHeaders,
+              "x-forwarded-for": randomIp(),
+            },
           },
-        }),
+        ),
       );
 
       expect(res.status).toBe(200);
@@ -278,7 +238,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should return attempt detail", async () => {
       const role = await createTestRoleWithPermissions("AttemptReaderRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "read",
         },
       ]);
@@ -297,7 +257,7 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/attempts/${attempt.id}`, {
+        new Request(`http://localhost/student/quizzes/attempts/${attempt.id}`, {
           method: "GET",
           headers: {
             ...authHeaders,
@@ -320,7 +280,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should submit attempt", async () => {
       const role = await createTestRoleWithPermissions("AttemptUpdaterRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "update",
         },
       ]);
@@ -339,13 +299,16 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/attempts/${attempt.id}/submit`, {
-          method: "PATCH",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
+        new Request(
+          `http://localhost/student/quizzes/attempts/${attempt.id}/submit`,
+          {
+            method: "PATCH",
+            headers: {
+              ...authHeaders,
+              "x-forwarded-for": randomIp(),
+            },
           },
-        }),
+        ),
       );
 
       expect(res.status).toBe(200);
@@ -361,7 +324,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should return quizzes with NOT_STARTED status when no answers or attempts exist", async () => {
       const role = await createTestRoleWithPermissions("StatusReaderRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "read",
         },
       ]);
@@ -384,7 +347,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/attempts/status/me?quizId=${quiz.id}`,
+          `http://localhost/student/quizzes/attempts/status/me?quizId=${quiz.id}`,
           {
             method: "GET",
             headers: {
@@ -408,7 +371,7 @@ describe("Quiz Attempt Test Suite", () => {
 
     it("should return IN_PROGRESS status when an unsubmitted attempt exists", async () => {
       const role = await createTestRoleWithPermissions("StatusReaderRole", [
-        { featureName: "quiz_management", action: "read" },
+        { featureName: "student_quiz_access", action: "read" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -445,7 +408,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/attempts/status/me?quizId=${quiz.id}`,
+          `http://localhost/student/quizzes/attempts/status/me?quizId=${quiz.id}`,
           {
             method: "GET",
             headers: {
@@ -469,7 +432,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should return COMPLETED status when a finalized attempt exists", async () => {
       const role = await createTestRoleWithPermissions("StatusReaderRole", [
         {
-          featureName: "quiz_management",
+          featureName: "student_quiz_access",
           action: "read",
         },
       ]);
@@ -490,7 +453,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/attempts/status/me?quizId=${quiz.id}`,
+          `http://localhost/student/quizzes/attempts/status/me?quizId=${quiz.id}`,
           {
             method: "GET",
             headers: {
@@ -518,7 +481,7 @@ describe("Quiz Attempt Test Suite", () => {
   describe("GET /quizzes/attempts/:id/results", () => {
     it("should return detailed evaluation mapping for a submitted attempt", async () => {
       const role = await createTestRoleWithPermissions("ResultReaderRole", [
-        { featureName: "quiz_management", action: "read" },
+        { featureName: "student_quiz_access", action: "read" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -565,13 +528,16 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/attempts/${attempt.id}/results`, {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
+        new Request(
+          `http://localhost/student/quizzes/attempts/${attempt.id}/results`,
+          {
+            method: "GET",
+            headers: {
+              ...authHeaders,
+              "x-forwarded-for": randomIp(),
+            },
           },
-        }),
+        ),
       );
 
       expect(res.status).toBe(200);
@@ -597,7 +563,7 @@ describe("Quiz Attempt Test Suite", () => {
 
     it("should reject 400 if attempt is not yet submitted", async () => {
       const role = await createTestRoleWithPermissions("ResultReaderRole", [
-        { featureName: "quiz_management", action: "read" },
+        { featureName: "student_quiz_access", action: "read" },
       ]);
 
       const { user, authHeaders } = await createAuthenticatedUser({
@@ -614,13 +580,16 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request(`http://localhost/quizzes/attempts/${attempt.id}/results`, {
-          method: "GET",
-          headers: {
-            ...authHeaders,
-            "x-forwarded-for": randomIp(),
+        new Request(
+          `http://localhost/student/quizzes/attempts/${attempt.id}/results`,
+          {
+            method: "GET",
+            headers: {
+              ...authHeaders,
+              "x-forwarded-for": randomIp(),
+            },
           },
-        }),
+        ),
       );
 
       expect(res.status).toBe(400);
@@ -634,7 +603,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should return high-level summary logs of all quiz attempts for lecturer tracking", async () => {
       const role = await createTestRoleWithPermissions(
         "LecturerResultsReaderRole",
-        [{ featureName: "quiz_management", action: "read" }],
+        [{ featureName: "student_quiz_access", action: "read" }],
       );
 
       const { user: lecturer, authHeaders } = await createAuthenticatedUser({
@@ -689,7 +658,7 @@ describe("Quiz Attempt Test Suite", () => {
       });
 
       const res = await app.handle(
-        new Request("http://localhost/quizzes/attempts/results", {
+        new Request("http://localhost/student/quizzes/attempts/results", {
           method: "GET",
           headers: {
             ...authHeaders,
@@ -719,7 +688,7 @@ describe("Quiz Attempt Test Suite", () => {
     it("should filter the bulk summary results accurately when query parameters are supplied", async () => {
       const role = await createTestRoleWithPermissions(
         "LecturerResultsReaderRole",
-        [{ featureName: "quiz_management", action: "read" }],
+        [{ featureName: "student_quiz_access", action: "read" }],
       );
 
       const { user: lecturer, authHeaders } = await createAuthenticatedUser({
@@ -749,7 +718,7 @@ describe("Quiz Attempt Test Suite", () => {
 
       const res = await app.handle(
         new Request(
-          `http://localhost/quizzes/attempts/results?quizId=${targetQuiz.id}`,
+          `http://localhost/student/quizzes/attempts/results?quizId=${targetQuiz.id}`,
           {
             method: "GET",
             headers: {

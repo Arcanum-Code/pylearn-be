@@ -15,6 +15,33 @@ const FEATURE_NAME = "student_material_access";
 
 export const studentMaterials = createProtectedApp()
   .get(
+    "/groups/mahasiswa/:groupId",
+    async ({ params, user, set, log, locale }) => {
+      const data = await StudentMaterialService.getStudentGroupDetail(
+        params.groupId,
+        user.id,
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      params: GroupParamSchema,
+      response: {
+        200: StudentMaterialModel.groupDetail,
+        404: StudentMaterialModel.error,
+        500: StudentMaterialModel.error,
+      },
+      beforeHandle: hasPermission(FEATURE_NAME, "read"),
+    },
+  )
+  .get(
     "/groups/:groupId/materials",
     async ({ params, user, set, log, locale }) => {
       const data = await StudentMaterialService.getGroupMaterials(

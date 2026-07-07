@@ -493,7 +493,10 @@ export abstract class DashboardService {
     groupId: string | undefined,
     log: Logger,
   ) {
-    log.debug({ studentId, limit, groupId }, "Fetching student recent activity");
+    log.debug(
+      { studentId, limit, groupId },
+      "Fetching student recent activity",
+    );
 
     const attempts = await prisma.quizAttempt.findMany({
       where: {

@@ -67,7 +67,7 @@ describe("Lecturer Quiz API - Draft & Metadata", () => {
         levelNumber: 5,
         title: "Old Title",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 
@@ -118,8 +118,9 @@ describe("Lecturer Quiz API - Draft & Metadata", () => {
         groupId: group.id,
         lecturerId: user.id,
         title: "Gate Mat",
-        materialType: "text",
-        isPublished: true,
+        materialType: "file",
+        content: "/storage/test.pdf",
+        publishedAt: new Date().toISOString(),
       },
     });
     const quiz = await prisma.quiz.create({
@@ -128,7 +129,7 @@ describe("Lecturer Quiz API - Draft & Metadata", () => {
         levelNumber: 23,
         title: "Get Quiz",
         passThreshold: 75,
-        isPublished: false,
+        publishedAt: null,
       },
     });
     const question = await prisma.quizQuestion.create({
@@ -189,7 +190,7 @@ describe("Lecturer Quiz API - Draft & Metadata", () => {
         levelNumber: 25,
         title: "Del Q Success",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 

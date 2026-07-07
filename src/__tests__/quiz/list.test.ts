@@ -28,7 +28,7 @@ describe("GET /quizzes", () => {
         groupId: group.id,
         title: "Quiz 1",
         description: "Test quiz",
-        isPublished: true,
+        publishedAt: new Date().toISOString(),
         levelNumber: 1,
       },
     });

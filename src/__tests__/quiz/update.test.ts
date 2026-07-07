@@ -27,7 +27,7 @@ describe("PATCH /quizzes/:id", () => {
       data: {
         groupId: group.id,
         title: "Original Title",
-        isPublished: false,
+        publishedAt: null,
         levelNumber: 1,
       },
     });
@@ -58,14 +58,17 @@ describe("PATCH /quizzes/:id", () => {
           "content-type": "application/json",
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify({ title: "Updated Title", isPublished: true }),
+        body: JSON.stringify({
+          title: "Updated Title",
+          publishedAt: new Date().toISOString(),
+        }),
       }),
     );
 
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.title).toBe("Updated Title");
-    expect(json.data.isPublished).toBe(true);
+    expect(json.data.publishedAt).not.toBeNull();
   });
 
   it("should reject publishing if quiz has no questions", async () => {
@@ -82,7 +85,7 @@ describe("PATCH /quizzes/:id", () => {
       data: {
         groupId: group.id,
         title: "No Questions Quiz",
-        isPublished: false,
+        publishedAt: null,
         levelNumber: 1,
       },
     });
@@ -95,7 +98,7 @@ describe("PATCH /quizzes/:id", () => {
           "content-type": "application/json",
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify({ isPublished: true }),
+        body: JSON.stringify({ publishedAt: new Date().toISOString() }),
       }),
     );
 
@@ -118,7 +121,7 @@ describe("PATCH /quizzes/:id", () => {
       data: {
         groupId: group.id,
         title: "No Blanks Quiz",
-        isPublished: false,
+        publishedAt: null,
         levelNumber: 1,
       },
     });
@@ -141,7 +144,7 @@ describe("PATCH /quizzes/:id", () => {
           "content-type": "application/json",
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify({ isPublished: true }),
+        body: JSON.stringify({ publishedAt: new Date().toISOString() }),
       }),
     );
 

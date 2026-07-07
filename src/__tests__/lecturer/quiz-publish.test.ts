@@ -31,7 +31,7 @@ describe("Lecturer Quiz API - Publish", () => {
         levelNumber: 15,
         title: "Pub Fail Quiz 1",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 
@@ -69,8 +69,9 @@ describe("Lecturer Quiz API - Publish", () => {
         groupId: group.id,
         lecturerId: user.id,
         title: "Mat",
-        materialType: "text",
-        isPublished: true,
+        materialType: "file",
+        content: "/storage/test.pdf",
+        publishedAt: new Date().toISOString(),
       },
     });
 
@@ -80,7 +81,7 @@ describe("Lecturer Quiz API - Publish", () => {
         levelNumber: 16,
         title: "Pub Fail Quiz 2",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 
@@ -128,8 +129,9 @@ describe("Lecturer Quiz API - Publish", () => {
         groupId: group.id,
         lecturerId: user.id,
         title: "Mat",
-        materialType: "text",
-        isPublished: true,
+        materialType: "file",
+        content: "/storage/test.pdf",
+        publishedAt: new Date().toISOString(),
       },
     });
 
@@ -139,7 +141,7 @@ describe("Lecturer Quiz API - Publish", () => {
         levelNumber: 17,
         title: "Pub OK Quiz",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 
@@ -197,7 +199,7 @@ describe("Lecturer Quiz API - Publish", () => {
         levelNumber: 24,
         title: "Del Q Fail",
         passThreshold: 60,
-        isPublished: true,
+        publishedAt: new Date().toISOString(),
       },
     });
 

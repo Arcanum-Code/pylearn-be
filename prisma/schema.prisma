@@ -46,7 +46,7 @@ model Material {
   content      String?   @db.Text
   sourceUrl    String?   @db.Text
 
-  isPublished  Boolean   @default(false)
+
   publishedAt  DateTime?
   groupId      String
   group        Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)

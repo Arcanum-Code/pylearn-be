@@ -373,7 +373,7 @@ export class LecturerQuizService {
 
     // Validation 1: Group has published materials
     const publishedMaterialsCount = await prisma.material.count({
-      where: { groupId: quiz.groupId, isPublished: true },
+      where: { groupId: quiz.groupId, publishedAt: { lte: new Date() } },
     });
     if (publishedMaterialsCount === 0) {
       errors.push({
@@ -448,7 +448,7 @@ export class LecturerQuizService {
         group: {
           include: {
             materials: {
-              where: { isPublished: true },
+              where: { publishedAt: { lte: new Date() } },
               orderBy: { sequence: "asc" },
             },
           },

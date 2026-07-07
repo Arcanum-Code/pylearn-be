@@ -229,9 +229,9 @@ export const defaultMaterialData = (lecturerId: string) => ({
   lecturerId,
   title: "Test Material",
   description: "Test description",
-  materialType: "text",
-  content: "Test content here",
-  isPublished: false,
+  materialType: "file",
+  content: "/storage/test.pdf",
+  publishedAt: undefined,
 });
 
 export async function createTestMaterial(

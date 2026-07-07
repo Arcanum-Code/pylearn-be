@@ -187,7 +187,7 @@ export abstract class DashboardService {
   static async getStudentDashboard(studentId: string, log: Logger) {
     log.debug({ studentId }, "Fetching student progression dashboard data");
 
-    const [attempts, enrollments] = await Promise.all([
+    const [attempts, allGroups] = await Promise.all([
       prisma.quizAttempt.findMany({
         where: { studentId },
         include: {
@@ -200,20 +200,15 @@ export abstract class DashboardService {
         },
         orderBy: { createdAt: "desc" },
       }),
-      prisma.groupEnrollment.findMany({
-        where: { studentId },
+      prisma.group.findMany({
         include: {
-          group: {
+          materials: {
             include: {
-              materials: {
-                include: {
-                  reads: {
-                    where: { studentId },
-                  },
-                },
-                orderBy: { sequence: "asc" },
+              reads: {
+                where: { studentId },
               },
             },
+            orderBy: { sequence: "asc" },
           },
         },
       }),
@@ -232,9 +227,9 @@ export abstract class DashboardService {
       "Student dashboard metrics processed successfully",
     );
 
-    const enrolledGroups = enrollments.map((enrollment) => {
+    const enrolledGroups = allGroups.map((group) => {
       let materialsCompleted = 0;
-      const materials = enrollment.group.materials.map((mat) => {
+      const materials = group.materials.map((mat) => {
         const read = mat.reads[0];
         let status: "not_started" | "in_progress" | "completed" = "not_started";
 
@@ -256,8 +251,8 @@ export abstract class DashboardService {
       });
 
       return {
-        groupId: enrollment.group.id,
-        groupName: enrollment.group.name,
+        groupId: group.id,
+        groupName: group.name,
         materialsCompleted,
         materialsTotal: materials.length,
         materials,

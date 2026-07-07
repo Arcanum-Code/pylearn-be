@@ -166,7 +166,7 @@ const protectedMaterials = createProtectedApp()
       const id = BigInt(params.id);
       const data = await MaterialService.updateMaterial(
         id,
-        { isPublished: true },
+        { publishedAt: new Date().toISOString() },
         log,
       );
       return successResponse(

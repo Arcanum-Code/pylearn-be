@@ -17,7 +17,7 @@ async function setupQuizHierarchy(lecturerId: string) {
     data: {
       groupId: group.id,
       title: "Bulk Operations Quiz",
-      isPublished: true,
+      publishedAt: new Date().toISOString(),
       levelNumber: 1,
     },
   });
@@ -182,7 +182,7 @@ describe("POST /quizzes/answers/bulk", () => {
         groupId: group.id,
         title: "Rogue Quiz",
         levelNumber: 2,
-        isPublished: true,
+        publishedAt: new Date().toISOString(),
       },
     });
 

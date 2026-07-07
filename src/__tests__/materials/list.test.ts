@@ -53,18 +53,18 @@ describe("GET /materials", () => {
 
     await createTestMaterial(user.id, {
       title: "Material 1",
-      materialType: "text",
-      isPublished: true,
+      materialType: "file",
+      content: "/storage/test.pdf",
+      publishedAt: new Date().toISOString(),
     });
     await createTestMaterial(user.id, {
       title: "Material 2",
       materialType: "video",
-      isPublished: true,
+      publishedAt: new Date().toISOString(),
     });
     await createTestMaterial(user.id, {
       title: "Material 3",
       materialType: "link",
-      isPublished: false,
     });
 
     const response = await app.handle(
@@ -100,11 +100,13 @@ describe("GET /materials", () => {
 
     await createTestMaterial(user.id, {
       title: "Material by user 1",
-      materialType: "text",
+      materialType: "file",
+      content: "/storage/test.pdf",
     });
     await createTestMaterial(otherUser.id, {
       title: "Material by other user",
-      materialType: "text",
+      materialType: "file",
+      content: "/storage/test.pdf",
     });
 
     const response = await app.handle(
@@ -133,7 +135,8 @@ describe("GET /materials", () => {
 
     await createTestMaterial(user.id, {
       title: "Text Material",
-      materialType: "text",
+      materialType: "file",
+      content: "/storage/test.pdf",
     });
     await createTestMaterial(user.id, {
       title: "Video Material",
@@ -167,17 +170,18 @@ describe("GET /materials", () => {
 
     await createTestMaterial(user.id, {
       title: "Published Material",
-      materialType: "text",
-      isPublished: true,
+      materialType: "file",
+      content: "/storage/test.pdf",
+      publishedAt: new Date().toISOString(),
     });
     await createTestMaterial(user.id, {
       title: "Draft Material",
-      materialType: "text",
-      isPublished: false,
+      materialType: "file",
+      content: "/storage/test.pdf",
     });
 
     const response = await app.handle(
-      new Request("http://localhost/materials?isPublished=true", {
+      new Request("http://localhost/materials?publishedAt=foo", {
         method: "GET",
         headers: {
           ...authHeaders,
@@ -189,7 +193,7 @@ describe("GET /materials", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.length).toBe(1);
-    expect(body.data[0].isPublished).toBe(true);
+    expect(body.data[0].publishedAt).not.toBeNull();
   });
 
   it("should return 401 without authentication", async () => {

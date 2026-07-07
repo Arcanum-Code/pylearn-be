@@ -43,7 +43,8 @@ describe("Student Material API - Progress", () => {
     const m1 = await prisma.material.create({
       data: {
         title: "Mat 1",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/test.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 1,
@@ -54,7 +55,8 @@ describe("Student Material API - Progress", () => {
     const m2 = await prisma.material.create({
       data: {
         title: "Mat 2",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/test.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 2,

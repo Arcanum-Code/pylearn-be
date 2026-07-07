@@ -16,13 +16,7 @@ export const CreateMaterialSchema = z.object({
   content: z.string().optional(),
   sourceUrl: z.string().url().optional(),
 
-  isPublished: z
-    .preprocess((val) => {
-      if (val === "true") return true;
-      if (val === "false") return false;
-      return val;
-    }, z.boolean())
-    .optional(),
+  publishedAt: z.string().datetime().optional(),
   sequence: z
     .preprocess(
       (val) => (val === undefined || val === null ? undefined : Number(val)),
@@ -60,13 +54,7 @@ export const UpdateMaterialSchema = z
     content: z.string().optional(),
     sourceUrl: z.string().url().optional(),
 
-    isPublished: z
-      .preprocess((val) => {
-        if (val === "true" || val === true) return true;
-        if (val === "false" || val === false) return false;
-        return val;
-      }, z.boolean())
-      .optional(),
+    publishedAt: z.string().datetime().optional(),
     sequence: z
       .preprocess(
         (val) => (val === undefined || val === null ? undefined : Number(val)),

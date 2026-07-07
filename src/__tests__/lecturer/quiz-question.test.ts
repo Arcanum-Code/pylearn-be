@@ -30,7 +30,7 @@ describe("Lecturer Quiz API - Questions & Blanks", () => {
         levelNumber: 10,
         title: "Question Quiz",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 
@@ -79,7 +79,7 @@ describe("Lecturer Quiz API - Questions & Blanks", () => {
         levelNumber: 11,
         title: "Blank Quiz",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
     const question = await prisma.quizQuestion.create({
@@ -137,7 +137,7 @@ describe("Lecturer Quiz API - Questions & Blanks", () => {
         levelNumber: 12,
         title: "Blank Quiz 2",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
     const question = await prisma.quizQuestion.create({
@@ -188,7 +188,7 @@ describe("Lecturer Quiz API - Questions & Blanks", () => {
         levelNumber: 13,
         title: "Patch Q Quiz",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
     const question = await prisma.quizQuestion.create({
@@ -257,7 +257,7 @@ describe("Lecturer Quiz API - Questions & Blanks", () => {
         levelNumber: 14,
         title: "Delete Q Quiz",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
     const question = await prisma.quizQuestion.create({

@@ -18,7 +18,7 @@ async function createMockQuestion(userId: string) {
     data: {
       groupId: group.id,
       title: "Answer Quiz",
-      isPublished: true,
+      publishedAt: new Date().toISOString(),
       levelNumber: 1,
     },
   });

@@ -18,7 +18,7 @@ async function createMockQuiz(userId: string, levelNumber = 1) {
     data: {
       groupId: group.id,
       title: `Attempt Quiz L${levelNumber}`,
-      isPublished: true,
+      publishedAt: new Date().toISOString(),
       levelNumber,
     },
   });
@@ -126,7 +126,8 @@ describe("Quiz Attempt Test Suite", () => {
           groupId: group.id,
           lecturerId: user.id,
           title: "Prereq Mat",
-          materialType: "text",
+          materialType: "file",
+          content: "/storage/test.pdf",
           version: 1,
         },
       });

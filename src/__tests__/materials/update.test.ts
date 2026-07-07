@@ -28,7 +28,6 @@ describe("PATCH /materials/:id", () => {
 
     const material = await createTestMaterial(user.id, {
       title: "Original Title",
-      isPublished: false,
     });
 
     const response = await app.handle(
@@ -91,8 +90,7 @@ describe("PATCH /materials/:id", () => {
 
     const material = await createTestMaterial(user.id, {
       title: "Test Material",
-      isPublished: false,
-      publishedAt: null,
+      ,
     });
 
     const response = await app.handle(
@@ -103,14 +101,14 @@ describe("PATCH /materials/:id", () => {
           "x-forwarded-for": randomIp(),
         },
         body: JSON.stringify({
-          isPublished: true,
+          publishedAt: new Date().toISOString(),
         }),
       }),
     );
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data.isPublished).toBe(true);
+    expect(body.data.publishedAt).not.toBeNull();
     expect(body.data.publishedAt).not.toBeNull();
   });
 
@@ -124,7 +122,7 @@ describe("PATCH /materials/:id", () => {
 
     const material = await createTestMaterial(user.id, {
       title: "Test Material",
-      isPublished: true,
+      publishedAt: new Date().toISOString(),
       publishedAt: new Date(),
     });
 
@@ -136,14 +134,13 @@ describe("PATCH /materials/:id", () => {
           "x-forwarded-for": randomIp(),
         },
         body: JSON.stringify({
-          isPublished: false,
         }),
       }),
     );
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data.isPublished).toBe(false);
+    expect(body.data.publishedAt).toBeNull();
     expect(body.data.publishedAt).toBeNull();
   });
 

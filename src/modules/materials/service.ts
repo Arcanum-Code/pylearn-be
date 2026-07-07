@@ -17,7 +17,6 @@ export const SAFE_MATERIAL_SELECT = {
   content: true,
   sourceUrl: true,
 
-  isPublished: true,
   publishedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -58,7 +57,11 @@ export abstract class MaterialService {
     }
 
     if (typeof isPublished === "boolean") {
-      where.isPublished = isPublished;
+      if (isPublished) {
+        where.publishedAt = { lte: new Date() };
+      } else {
+        where.OR = [{ publishedAt: null }, { publishedAt: { gt: new Date() } }];
+      }
     }
 
     const skip = (page - 1) * limit;
@@ -161,7 +164,7 @@ export abstract class MaterialService {
         content: filePath ?? dbData.content ?? null,
         sequence,
         version: 1,
-        publishedAt: data.isPublished ? new Date() : null,
+        publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
       },
       select: SAFE_MATERIAL_SELECT,
     });
@@ -223,10 +226,7 @@ export abstract class MaterialService {
         content: filePath ?? data.content ?? null,
         sourceUrl: data.sourceUrl ?? null,
 
-        publishedAt:
-          data.isPublished === "true" || data.isPublished === true
-            ? new Date()
-            : null,
+        publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
       },
       select: SAFE_MATERIAL_SELECT,
     });
@@ -317,14 +317,10 @@ export abstract class MaterialService {
     };
 
     // 4. Handle publishing timestamp checks mirroring createMaterialMe string constraints
-    if (data.isPublished !== undefined) {
-      if (data.isPublished === "true" || data.isPublished === true) {
-        updateData.publishedAt = new Date();
-        updateData.isPublished = true;
-      } else {
-        updateData.publishedAt = null;
-        updateData.isPublished = false;
-      }
+    if (data.publishedAt !== undefined) {
+      updateData.publishedAt = data.publishedAt
+        ? new Date(data.publishedAt)
+        : null;
     }
 
     if (data.forceReread === true || data.forceReread === "true") {

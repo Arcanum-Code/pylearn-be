@@ -30,7 +30,7 @@ describe("Lecturer Quiz API - List", () => {
         levelNumber: 21,
         title: "Quiz 21",
         passThreshold: 60,
-        isPublished: true,
+        publishedAt: new Date().toISOString(),
       },
     });
     await prisma.quiz.create({
@@ -39,7 +39,7 @@ describe("Lecturer Quiz API - List", () => {
         levelNumber: 22,
         title: "Quiz 22",
         passThreshold: 60,
-        isPublished: false,
+        publishedAt: null,
       },
     });
 

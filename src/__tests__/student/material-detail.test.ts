@@ -42,10 +42,12 @@ describe("Student Material API - Detail", () => {
     const m1 = await prisma.material.create({
       data: {
         title: "Mat 1",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/1.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 1,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
     material1Id = m1.id;
@@ -53,10 +55,12 @@ describe("Student Material API - Detail", () => {
     const m2 = await prisma.material.create({
       data: {
         title: "Mat 2",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/2.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 2,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
     material2Id = m2.id;
@@ -64,7 +68,7 @@ describe("Student Material API - Detail", () => {
 
   it("should get material detail and auto-create in_progress state", async () => {
     const res = await app.handle(
-      new Request(`http://localhost/api/student/materials/${material1Id}`, {
+      new Request(`http://localhost/student/materials/${material1Id}`, {
         headers: authHeaders,
       }),
     );

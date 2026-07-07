@@ -72,6 +72,7 @@ export abstract class GroupService {
       materials: group.materials.map((m) => ({
         ...m,
         id: m.id.toString(),
+        publishedAt: m.publishedAt ? m.publishedAt.toISOString() : null,
       })),
       quizzes: group.quizzes.map((q) => ({
         ...q,

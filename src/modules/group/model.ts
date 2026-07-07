@@ -20,7 +20,7 @@ export const GroupSafe = z.object({
 export const GroupMaterialSafe = z.object({
   id: z.string(),
   title: z.string(),
-  isPublished: z.boolean(),
+  publishedAt: z.string().datetime().nullable(),
 });
 
 export const GroupQuizSafe = z.object({

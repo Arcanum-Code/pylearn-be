@@ -40,31 +40,36 @@ describe("Student Material API - List", () => {
     await prisma.material.create({
       data: {
         title: "Mat 1",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/1.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 1,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
 
     await prisma.material.create({
       data: {
         title: "Mat 2",
-        materialType: "text",
+        materialType: "file",
+        content: "/storage/2.pdf",
         groupId,
         lecturerId: lecturer.id,
         sequence: 2,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
   });
 
   it("should get group materials with default progress", async () => {
     const res = await app.handle(
-      new Request(`http://localhost/api/student/groups/${groupId}/materials`, {
+      new Request(`http://localhost/student/groups/${groupId}/materials`, {
         headers: authHeaders,
       }),
     );
     const body = await res.json();
+    console.log("RESPONSE BODY:", body);
     expect(res.status).toBe(200);
     expect(body.data.group_name).toBe("Test Group");
     expect(body.data.materials.length).toBe(2);

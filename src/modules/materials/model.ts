@@ -17,7 +17,6 @@ export const MaterialSafe = z.object({
   content: z.string().nullable(),
   sourceUrl: z.string().nullable(),
 
-  isPublished: z.boolean(),
   publishedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),

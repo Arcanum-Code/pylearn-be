@@ -14,6 +14,7 @@ export class StudentMaterialService {
       include: {
         materials: {
           orderBy: { sequence: "asc" },
+          where: { publishedAt: { lte: new Date() } },
           include: {
             reads: {
               where: { studentId },
@@ -74,6 +75,7 @@ export class StudentMaterialService {
           include: {
             materials: {
               orderBy: { sequence: "asc" },
+              where: { publishedAt: { lte: new Date() } },
               select: { id: true, sequence: true },
             },
           },
@@ -86,6 +88,10 @@ export class StudentMaterialService {
 
     const locale = (log.bindings()?.locale as string) || "en";
     if (!material) throw new MaterialNotFoundError(locale);
+
+    if (material.publishedAt === null || material.publishedAt > new Date()) {
+      throw new MaterialNotFoundError(locale);
+    }
 
     // Auto-create progress row if it doesn't exist
     let read = material.reads[0];
@@ -143,6 +149,10 @@ export class StudentMaterialService {
 
     const locale = (log.bindings()?.locale as string) || "en";
     if (!material) throw new MaterialNotFoundError(locale);
+
+    if (material.publishedAt === null || material.publishedAt > new Date()) {
+      throw new MaterialNotFoundError(locale);
+    }
 
     const existingRead = await prisma.materialRead.findUnique({
       where: {

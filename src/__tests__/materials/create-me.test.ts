@@ -30,9 +30,9 @@ describe("POST /materials/me", () => {
     const materialData = {
       title: "Material Me",
       description: "Testing POST /materials/me",
-      materialType: "text",
+      materialType: "file",
+      content: "/storage/test.pdf",
       content: "Some content",
-      isPublished: false,
       groupId: group.id,
     };
 
@@ -67,7 +67,7 @@ describe("POST /materials/me", () => {
     const formData = new FormData();
     formData.append("title", "Lecture Notes PDF");
     formData.append("materialType", "file");
-    formData.append("isPublished", "true");
+    formData.append("publishedAt", new Date().toISOString());
     formData.append("groupId", group.id);
 
     const mockPdfFile = new File(
@@ -139,7 +139,8 @@ describe("POST /materials/me", () => {
         },
         body: JSON.stringify({
           title: "Forbidden Material",
-          materialType: "text",
+          materialType: "file",
+          content: "/storage/test.pdf",
           groupId: group.id,
         }),
       }),

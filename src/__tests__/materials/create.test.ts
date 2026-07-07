@@ -76,7 +76,7 @@ describe("POST /materials", () => {
           materialType: "video",
           sourceUrl: "https://example.com/video.mp4",
           iconName: "video-icon",
-          isPublished: true,
+          publishedAt: new Date().toISOString(),
         }),
       }),
     );
@@ -86,7 +86,7 @@ describe("POST /materials", () => {
     expect(body.data.title).toBe("Video Material");
     expect(body.data.materialType).toBe("video");
     expect(body.data.sourceUrl).toBe("https://example.com/video.mp4");
-    expect(body.data.isPublished).toBe(true);
+    expect(body.data.publishedAt).not.toBeNull();
     expect(body.data.publishedAt).not.toBeNull();
   });
 
@@ -146,7 +146,8 @@ describe("POST /materials", () => {
           lecturerId: "test-user-id",
           groupId: group.id,
           title: "Test Material",
-          materialType: "text",
+          materialType: "file",
+          content: "/storage/test.pdf",
         }),
       }),
     );

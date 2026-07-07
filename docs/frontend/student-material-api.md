@@ -130,4 +130,74 @@ Update the student's progress for a specific material, such as marking it as com
     "completed_at": "2026-07-05T15:00:00.000Z"
   }
 }
+
+---
+
+## 4. Get Student Group Detail Timeline (MVP)
+
+Retrieve a unified chronological timeline (`items`) of both materials and quizzes for a group, formatted specifically for the student course portal.
+
+**Endpoint:** `GET /groups/mahasiswa/:groupId`
+**Auth:** Bearer Token
+**Permission Required:** `student_material_access` (`read`)
+
+### Path Parameters
+
+| Parameter | Type   | Description                                |
+| --------- | ------ | ------------------------------------------ |
+| `groupId` | string | The unique ID of the student group         |
+
+### Response
+
+```json
+{
+  "success": true,
+  "message": "Detail kelas berhasil diambil",
+  "data": {
+    "groupId": "grp_abc123",
+    "groupName": "Introduction to Python 101",
+    "description": "Kelas ini membahas dasar-dasar pemrograman Python mulai dari variabel hingga object-oriented programming.",
+    "lecturerName": "Dr. Alan Turing",
+    "progress": {
+      "materialsCompleted": 2,
+      "materialsTotal": 5,
+      "percentage": 40
+    },
+    "items": [
+      {
+        "type": "material",
+        "id": "mat_1",
+        "title": "Welcome to Python",
+        "description": "Pengenalan sejarah dan sintaks dasar Python.",
+        "status": "completed",
+        "scrollPercentage": 100,
+        "order": 1
+      },
+      {
+        "type": "material",
+        "id": "mat_2",
+        "title": "Variables and Data Types",
+        "description": "Memahami string, integer, float, dan boolean.",
+        "status": "in_progress",
+        "scrollPercentage": 45,
+        "order": 2
+      },
+      {
+        "type": "quiz",
+        "id": "quiz_1",
+        "title": "Kuis Dasar Python",
+        "description": "Uji pemahaman Anda tentang variabel dan tipe data.",
+        "status": "not_started",
+        "deadline": "2026-07-20T23:59:59.000Z",
+        "bestScore": null,
+        "order": 3
+      }
+    ]
+  }
+}
+```
+
+- **Unified Timeline**: Merges published materials (using `sequence`) and published quizzes (using `levelNumber`) into a single chronological timeline sorted by `order`.
+- **Hides Drafts**: Materials and quizzes that are not published are completely excluded.
+- **Student Progress**: Calculates the completion percentage of materials within the group.
 ```

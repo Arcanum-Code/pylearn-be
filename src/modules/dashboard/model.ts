@@ -61,6 +61,7 @@ const RecentResultItemSchema = z.object({
   attemptId: z.string(),
   quizId: z.string(),
   quizTitle: z.string(),
+  groupId: z.string(),
   submittedAt: z.string().datetime(),
 });
 

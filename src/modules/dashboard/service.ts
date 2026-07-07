@@ -195,6 +195,7 @@ export abstract class DashboardService {
             select: {
               id: true,
               title: true,
+              groupId: true,
             },
           },
         },
@@ -274,6 +275,7 @@ export abstract class DashboardService {
         attemptId: a.id.toString(),
         quizId: a.quiz.id.toString(),
         quizTitle: a.quiz.title,
+        groupId: a.quiz.groupId,
         submittedAt: a.submittedAt!.toISOString(),
       })),
       enrolledGroups,

@@ -283,24 +283,131 @@ export abstract class DashboardService {
   static async getSummary(groupId: string, log: Logger) {
     log.debug({ groupId }, "Fetching dashboard summary");
 
-    const total_students = await prisma.groupEnrollment.count({
-      where: { groupId },
+    // Count all active student users in the system (using the seeded role name "Mahasiswa")
+    const total_students = await prisma.user.count({
+      where: {
+        role: {
+          name: "Mahasiswa",
+        },
+        isActive: true,
+      },
     });
 
     const total_materials = await prisma.material.count({
       where: { groupId },
     });
 
+    // Count completed material reads (readAt is not null) for materials in this group by active students
+    const totalReadCount = await prisma.materialRead.count({
+      where: {
+        material: {
+          groupId,
+        },
+        readAt: {
+          not: null,
+        },
+        student: {
+          role: {
+            name: "Mahasiswa",
+          },
+          isActive: true,
+        },
+      },
+    });
+
+    const avg_materials_read =
+      total_students > 0
+        ? Number((totalReadCount / total_students).toFixed(2))
+        : 0.0;
+
+    // Fetch quizzes and attempts to calculate pass rates
+    const quizzes = await prisma.quiz.findMany({
+      where: { groupId },
+      select: {
+        passThreshold: true,
+        QuizAttempt: {
+          where: {
+            student: {
+              role: {
+                name: "Mahasiswa",
+              },
+              isActive: true,
+            },
+          },
+          select: {
+            score: true,
+            submittedAt: true,
+          },
+        },
+      },
+    });
+
+    let scoredAttemptsCount = 0;
+    let passedAttemptsCount = 0;
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    let currentWeekScored = 0;
+    let currentWeekPassed = 0;
+    let previousWeekScored = 0;
+    let previousWeekPassed = 0;
+
+    for (const quiz of quizzes) {
+      for (const attempt of quiz.QuizAttempt) {
+        if (attempt.score !== null) {
+          scoredAttemptsCount++;
+          const isPassed = attempt.score >= quiz.passThreshold;
+          if (isPassed) {
+            passedAttemptsCount++;
+          }
+
+          if (attempt.submittedAt) {
+            const submittedAtTime = attempt.submittedAt.getTime();
+            if (submittedAtTime >= sevenDaysAgo.getTime()) {
+              currentWeekScored++;
+              if (isPassed) {
+                currentWeekPassed++;
+              }
+            } else if (submittedAtTime >= fourteenDaysAgo.getTime()) {
+              previousWeekScored++;
+              if (isPassed) {
+                previousWeekPassed++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const avg_pass_rate =
+      scoredAttemptsCount > 0
+        ? Number(((passedAttemptsCount / scoredAttemptsCount) * 100).toFixed(2))
+        : 0.0;
+
+    const current_week =
+      currentWeekScored > 0
+        ? Number(((currentWeekPassed / currentWeekScored) * 100).toFixed(2))
+        : 0.0;
+
+    const previous_week =
+      previousWeekScored > 0
+        ? Number(((previousWeekPassed / previousWeekScored) * 100).toFixed(2))
+        : 0.0;
+
+    const delta = Number((current_week - previous_week).toFixed(2));
+
     return {
       group_id: groupId,
       total_students,
-      avg_materials_read: 0.0,
+      avg_materials_read,
       total_materials,
-      avg_pass_rate: 0.0,
+      avg_pass_rate,
       pass_rate_trend: {
-        current_week: 0.0,
-        previous_week: 0.0,
-        delta: 0.0,
+        current_week,
+        previous_week,
+        delta,
       },
       generated_at: new Date().toISOString(),
     };

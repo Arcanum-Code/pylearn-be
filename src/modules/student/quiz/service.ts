@@ -522,6 +522,7 @@ export abstract class StudentQuizService {
 
       const isBlankQuestion = question.keywords.length > 0;
       let blanksBreakdown: any[] = [];
+      let userAnswer: string | null = userAnswerRecord?.answerText ?? null;
 
       if (isBlankQuestion) {
         blanksBreakdown = question.keywords.map((kw) => {
@@ -536,13 +537,32 @@ export abstract class StudentQuizService {
             isCorrect: userItem ? userItem.isCorrect : false,
           };
         });
+
+        if (userAnswerRecord?.items) {
+          let result = "";
+          let lastIndex = 0;
+          const sortedKeywords = [...question.keywords].sort(
+            (a, b) => a.startIndex - b.startIndex,
+          );
+          for (const kw of sortedKeywords) {
+            const userItem = userAnswerRecord.items.find(
+              (item) => item.keywordId === kw.id,
+            );
+            const userBlankAnswer = userItem ? userItem.answerText : "";
+            result += question.answerText.slice(lastIndex, kw.startIndex);
+            result += userBlankAnswer;
+            lastIndex = kw.endIndex;
+          }
+          result += question.answerText.slice(lastIndex);
+          userAnswer = result;
+        }
       }
 
       return {
         questionId: question.id.toString(),
         questionText: question.questionText,
         maxScore: question.maxScore,
-        userAnswer: userAnswerRecord?.answerText ?? null,
+        userAnswer,
         correctAnswer: question.answerText,
         isCorrect: userAnswerRecord?.isCorrect ?? false,
         ...(isBlankQuestion && { blanks: blanksBreakdown }),
@@ -614,6 +634,7 @@ export abstract class StudentQuizService {
         blanks: q.keywords.map((b) => ({
           keywordId: b.id.toString(),
           blankOrder: b.blankOrder,
+          correctAnswerLength: b.endIndex - b.startIndex,
         })),
       };
     });

@@ -107,7 +107,9 @@ describe("Blank Question and Answers Integration Tests", () => {
       );
       expect(qData.blanks).toHaveLength(2);
       expect(qData.blanks[0].blankOrder).toBe(1);
+      expect(qData.blanks[0].correctAnswerLength).toBe(3);
       expect(qData.blanks[1].blankOrder).toBe(2);
+      expect(qData.blanks[1].correctAnswerLength).toBe(8);
     });
   });
 
@@ -294,6 +296,9 @@ describe("Blank Question and Answers Integration Tests", () => {
         details.blanks.find((b: any) => b.keywordId === keyword2.id.toString())
           .isCorrect,
       ).toBe(false);
+      expect(details.userAnswer).toBe(
+        "To define a incorrectText, use the def keyword.",
+      );
     });
   });
 });

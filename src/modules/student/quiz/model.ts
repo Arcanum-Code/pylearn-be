@@ -107,6 +107,7 @@ export const QuizQuestionWithoutAnswerText = z.object({
     z.object({
       keywordId: z.string(),
       blankOrder: z.number(),
+      correctAnswerLength: z.number(),
     }),
   ),
 });

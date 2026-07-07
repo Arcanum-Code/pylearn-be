@@ -486,4 +486,48 @@ export abstract class DashboardService {
       groupId: a.quiz.groupId,
     }));
   }
+
+  static async getStudentRecentActivity(
+    studentId: string,
+    limit: number,
+    groupId: string | undefined,
+    log: Logger,
+  ) {
+    log.debug({ studentId, limit, groupId }, "Fetching student recent activity");
+
+    const attempts = await prisma.quizAttempt.findMany({
+      where: {
+        studentId,
+        submittedAt: { not: null },
+        quiz: groupId ? { groupId } : undefined,
+      },
+      orderBy: {
+        submittedAt: "desc",
+      },
+      take: limit,
+      include: {
+        student: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        quiz: {
+          select: {
+            title: true,
+            groupId: true,
+          },
+        },
+      },
+    });
+
+    return attempts.map((a) => ({
+      id: a.id.toString(),
+      studentName: a.student.name || a.student.email || "Unknown",
+      taskName: a.quiz.title,
+      submittedAt: a.submittedAt!.toISOString(),
+      score: a.score ?? 0,
+      groupId: a.quiz.groupId,
+    }));
+  }
 }

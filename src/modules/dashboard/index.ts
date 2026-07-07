@@ -73,6 +73,58 @@ const protectedDashboard = createProtectedApp()
       },
     },
   )
+  .get(
+    "/mahasiswa/calendar/events",
+    async ({ query: { year, month, groupId }, set, log, locale }) => {
+      const data = await DashboardService.getCalendarEvents(
+        year,
+        month,
+        groupId,
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      query: CalendarQuerySchema,
+      response: {
+        200: DashboardModel.calendarEvents,
+        500: DashboardModel.error,
+      },
+    },
+  )
+  .get(
+    "/mahasiswa/recent-activity",
+    async ({ user, query: { limit, groupId }, set, log, locale }) => {
+      const data = await DashboardService.getStudentRecentActivity(
+        user.id,
+        limit,
+        groupId,
+        log,
+      );
+      return successResponse(
+        set,
+        data,
+        { key: "common.success" },
+        200,
+        undefined,
+        locale,
+      );
+    },
+    {
+      query: RecentActivityQuerySchema,
+      response: {
+        200: DashboardModel.recentActivity,
+        500: DashboardModel.error,
+      },
+    },
+  )
   .onError(({ error, set }) => {
     console.log("ERROR: ", error);
     return errorResponse(set, 500, { key: "common.internalServerError" }, null);

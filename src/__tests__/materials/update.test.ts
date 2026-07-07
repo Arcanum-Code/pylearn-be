@@ -90,7 +90,6 @@ describe("PATCH /materials/:id", () => {
 
     const material = await createTestMaterial(user.id, {
       title: "Test Material",
-      ,
     });
 
     const response = await app.handle(
@@ -133,8 +132,7 @@ describe("PATCH /materials/:id", () => {
           ...authHeaders,
           "x-forwarded-for": randomIp(),
         },
-        body: JSON.stringify({
-        }),
+        body: JSON.stringify({}),
       }),
     );
 

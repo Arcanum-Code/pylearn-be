@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-export const GroupParamSchema = z.object({
-  groupId: z.string(),
-});
-
 export const MaterialParamSchema = z.object({
   materialId: z.string(),
 });

@@ -48,6 +48,7 @@ describe("Student Material API - Progress", () => {
         groupId,
         lecturerId: lecturer.id,
         sequence: 1,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
     material1Id = m1.id;
@@ -60,6 +61,7 @@ describe("Student Material API - Progress", () => {
         groupId,
         lecturerId: lecturer.id,
         sequence: 2,
+        publishedAt: new Date(Date.now() - 100000),
       },
     });
     material2Id = m2.id;
@@ -68,7 +70,7 @@ describe("Student Material API - Progress", () => {
   it("should update progress to completed", async () => {
     const res = await app.handle(
       new Request(
-        `http://localhost/api/student/materials/${material1Id}/progress`,
+        `http://localhost/student/materials/${material1Id}/progress`,
         {
           method: "PATCH",
           headers: authHeaders,
@@ -87,7 +89,7 @@ describe("Student Material API - Progress", () => {
     // 1. PATCH with in_progress and 50%
     const patchRes = await app.handle(
       new Request(
-        `http://localhost/api/student/materials/${material2Id}/progress`,
+        `http://localhost/student/materials/${material2Id}/progress`,
         {
           method: "PATCH",
           headers: authHeaders,
@@ -106,7 +108,7 @@ describe("Student Material API - Progress", () => {
 
     // 2. GET detail to verify
     const getRes = await app.handle(
-      new Request(`http://localhost/api/student/materials/${material2Id}`, {
+      new Request(`http://localhost/student/materials/${material2Id}`, {
         headers: authHeaders,
       }),
     );

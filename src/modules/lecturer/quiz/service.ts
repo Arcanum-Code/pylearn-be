@@ -58,6 +58,13 @@ export class LecturerQuizService {
       throw new LecturerQuizError(404, "common.notFound");
     }
 
+    if (existing.isPublished) {
+      throw new LecturerQuizError(
+        400,
+        "Tidak dapat mengubah kuis yang sudah dipublikasikan",
+      );
+    }
+
     if (data.level !== undefined && data.level !== existing.levelNumber) {
       const levelConflict = await prisma.quiz.findUnique({
         where: {
@@ -115,9 +122,19 @@ export class LecturerQuizService {
     const quizId = BigInt(quizIdStr.replace("qz_", ""));
 
     // Check if quiz exists
-    const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+    const quiz = await prisma.quiz.findUnique({
+      where: { id: quizId },
+      select: { id: true, isPublished: true },
+    });
     if (!quiz) {
       throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (quiz.isPublished) {
+      throw new LecturerQuizError(
+        400,
+        "Tidak dapat mengubah kuis yang sudah dipublikasikan",
+      );
     }
 
     // Check for sequence_order conflict
@@ -168,9 +185,19 @@ export class LecturerQuizService {
 
     const question = await prisma.quizQuestion.findUnique({
       where: { id: questionId },
+      include: {
+        quiz: { select: { isPublished: true } },
+      },
     });
     if (!question) {
       throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (question.quiz.isPublished) {
+      throw new LecturerQuizError(
+        400,
+        "Tidak dapat mengubah kuis yang sudah dipublikasikan",
+      );
     }
 
     // Validate that each blank exactly matches the answerText substring
@@ -248,10 +275,20 @@ export class LecturerQuizService {
 
     const question = await prisma.quizQuestion.findUnique({
       where: { id: questionId },
-      include: { keywords: true },
+      include: {
+        keywords: true,
+        quiz: { select: { isPublished: true } },
+      },
     });
     if (!question) {
       throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (question.quiz.isPublished) {
+      throw new LecturerQuizError(
+        400,
+        "Tidak dapat mengubah kuis yang sudah dipublikasikan",
+      );
     }
 
     if (
@@ -340,9 +377,19 @@ export class LecturerQuizService {
 
     const question = await prisma.quizQuestion.findUnique({
       where: { id: questionId },
+      include: {
+        quiz: { select: { isPublished: true } },
+      },
     });
     if (!question) {
       throw new LecturerQuizError(404, "common.notFound");
+    }
+
+    if (question.quiz.isPublished) {
+      throw new LecturerQuizError(
+        400,
+        "Tidak dapat mengubah kuis yang sudah dipublikasikan",
+      );
     }
 
     await prisma.quizQuestion.delete({ where: { id: questionId } });

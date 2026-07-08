@@ -1,0 +1,7 @@
+pylearn.my.id {
+    reverse_proxy frontend:80
+}
+
+api.pylearn.my.id {
+    reverse_proxy backend:4000
+}

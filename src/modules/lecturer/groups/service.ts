@@ -391,11 +391,18 @@ export class LecturerGroupsService {
               title: true,
               passThreshold: true,
               questions: {
+                include: {
+                  keywords: true,
+                },
                 orderBy: { questionOrder: "asc" },
               },
             },
           },
-          answers: true,
+          answers: {
+            include: {
+              items: true,
+            },
+          },
         },
         orderBy: { startedAt: "desc" },
       }),
@@ -428,11 +435,32 @@ export class LecturerGroupsService {
       const questions = attempt.quiz.questions.map((q) => {
         const ans = attempt.answers.find((a) => a.quizQuestionId === q.id);
         const isCorrect = ans?.isCorrect ?? false;
+
+        const isBlankQuestion = q.keywords.length > 0;
+        let studentAnswer: string | null = ans?.answerText ?? null;
+
+        if (isBlankQuestion && ans?.items) {
+          let result = "";
+          let lastIndex = 0;
+          const sortedKeywords = [...q.keywords].sort(
+            (a, b) => a.startIndex - b.startIndex,
+          );
+          for (const kw of sortedKeywords) {
+            const userItem = ans.items.find((item) => item.keywordId === kw.id);
+            const userBlankAnswer = userItem ? userItem.answerText : "";
+            result += q.answerText.slice(lastIndex, kw.startIndex);
+            result += userBlankAnswer;
+            lastIndex = kw.endIndex;
+          }
+          result += q.answerText.slice(lastIndex);
+          studentAnswer = result;
+        }
+
         return {
           question_id: String(q.id),
           question_text: q.questionText,
           question_type: "SHORT_ANSWER",
-          student_answer: ans?.answerText ?? null,
+          student_answer: studentAnswer,
           correct_answer: q.answerText ?? null,
           is_correct: isCorrect,
           points_earned: isCorrect ? q.maxScore : 0,

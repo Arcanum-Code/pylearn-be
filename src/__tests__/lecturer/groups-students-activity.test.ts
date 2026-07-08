@@ -38,7 +38,7 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
       },
     });
 
-    // Create group, materials, quizzes, questions
+    // Create group, materials, quizzes, fill-in-the-blank questions
     const group = await prisma.group.create({
       data: {
         name: "Python 101",
@@ -61,10 +61,20 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
               questions: {
                 create: [
                   {
-                    questionText: "Apa tipe data 3.14?",
-                    answerText: "float",
+                    questionText: "Lengkapi kode berikut: ___ = 5",
+                    answerText: "x = 5",
                     maxScore: 100,
                     questionOrder: 1,
+                    keywords: {
+                      create: [
+                        {
+                          blankOrder: 1,
+                          correctAnswer: "x",
+                          startIndex: 0,
+                          endIndex: 1,
+                        },
+                      ],
+                    },
                   },
                 ],
               },
@@ -75,7 +85,11 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
       include: {
         materials: true,
         quizzes: {
-          include: { questions: true },
+          include: {
+            questions: {
+              include: { keywords: true },
+            },
+          },
         },
       },
     });
@@ -83,6 +97,7 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
     const mat1 = group.materials[0];
     const quiz1 = group.quizzes[0];
     const question1 = quiz1.questions[0];
+    const keyword1 = question1.keywords[0];
 
     // Create MaterialRead for mat1
     await prisma.materialRead.create({
@@ -95,7 +110,7 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
       },
     });
 
-    // Create QuizAttempt for quiz1 along with QuizAnswer
+    // Create QuizAttempt for quiz1 along with QuizAnswer and QuizAnswerItem (blank answer)
     await prisma.quizAttempt.create({
       data: {
         quizId: quiz1.id,
@@ -108,8 +123,17 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
           create: [
             {
               quizQuestionId: question1.id,
-              answerText: "float",
+              answerText: "",
               isCorrect: true,
+              items: {
+                create: [
+                  {
+                    keywordId: keyword1.id,
+                    answerText: "x",
+                    isCorrect: true,
+                  },
+                ],
+              },
             },
           ],
         },
@@ -155,10 +179,10 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
 
     const qItem = attemptHistory.questions[0];
     expect(qItem.question_id).toBe(String(question1.id));
-    expect(qItem.question_text).toBe("Apa tipe data 3.14?");
+    expect(qItem.question_text).toBe("Lengkapi kode berikut: ___ = 5");
     expect(qItem.question_type).toBe("SHORT_ANSWER");
-    expect(qItem.student_answer).toBe("float");
-    expect(qItem.correct_answer).toBe("float");
+    expect(qItem.student_answer).toBe("x = 5"); // Successfully reconstructed from QuizAnswerItem!
+    expect(qItem.correct_answer).toBe("x = 5");
     expect(qItem.is_correct).toBe(true);
     expect(qItem.points_earned).toBe(100);
     expect(qItem.points_possible).toBe(100);

@@ -15,7 +15,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN bun ./node_modules/prisma/build/index.js generate
+RUN bunx prisma generate
 RUN bun run build
 
 # =========================================

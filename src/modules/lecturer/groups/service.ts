@@ -28,44 +28,46 @@ export class LecturerGroupsService {
           },
           orderBy: { levelNumber: "asc" },
         },
-        enrollments: {
-          select: {
-            createdAt: true,
-            student: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                MaterialRead: {
-                  where: { material: { groupId } },
-                  select: {
-                    materialId: true,
-                    scrollPercentage: true,
-                    readAt: true,
-                    updatedAt: true,
-                  },
-                },
-                QuizAttempt: {
-                  where: { quiz: { groupId } },
-                  select: {
-                    id: true,
-                    quizId: true,
-                    score: true,
-                    attemptNumber: true,
-                    startedAt: true,
-                    submittedAt: true,
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
     if (!group) {
       throw new LecturerGroupsError(404, "common.notFound");
     }
+
+    const students = await prisma.user.findMany({
+      where: {
+        role: {
+          name: "Mahasiswa",
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        MaterialRead: {
+          where: { material: { groupId } },
+          select: {
+            materialId: true,
+            scrollPercentage: true,
+            readAt: true,
+            updatedAt: true,
+          },
+        },
+        QuizAttempt: {
+          where: { quiz: { groupId } },
+          select: {
+            id: true,
+            quizId: true,
+            score: true,
+            attemptNumber: true,
+            startedAt: true,
+            submittedAt: true,
+          },
+        },
+      },
+    });
 
     const totalMaterials = group.materials.length;
     const _totalQuizzes = group.quizzes.length;
@@ -76,9 +78,7 @@ export class LecturerGroupsService {
     let totalProgressSum = 0;
     let totalQuizScoreSum = 0;
 
-    const rawStudents = group.enrollments.map((enrollment) => {
-      const student = enrollment.student;
-
+    const rawStudents = students.map((student) => {
       // Materials progress
       let completedMaterialsCount = 0;
       const materialsProgress = group.materials.map((mat) => {
@@ -354,18 +354,27 @@ export class LecturerGroupsService {
       "Fetching granular student activity detail",
     );
 
-    const enrollment = await prisma.groupEnrollment.findUnique({
-      where: {
-        groupId_studentId: { groupId, studentId },
-      },
-      include: {
-        student: {
-          select: { id: true, name: true, email: true },
+    const [student, groupExists] = await Promise.all([
+      prisma.user.findFirst({
+        where: {
+          id: studentId,
+          role: { name: "Mahasiswa" },
+          isActive: true,
         },
-      },
-    });
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      }),
+      prisma.group.findUnique({
+        where: { id: groupId },
+        select: { id: true },
+      }),
+    ]);
 
-    if (!enrollment) {
+    if (!student || !groupExists) {
       throw new LecturerGroupsError(404, "common.notFound");
     }
 
@@ -442,10 +451,10 @@ export class LecturerGroupsService {
 
     return {
       student: {
-        student_id: enrollment.student.id,
-        name: enrollment.student.name || "",
-        email: enrollment.student.email,
-        enrolled_at: enrollment.createdAt.toISOString(),
+        student_id: student.id,
+        name: student.name || "",
+        email: student.email,
+        enrolled_at: student.createdAt.toISOString(),
       },
       quiz_attempts_history: quizAttemptsHistory,
       material_reading_timeline: materialReadingTimeline,

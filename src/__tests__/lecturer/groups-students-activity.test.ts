@@ -22,17 +22,20 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
       email: "dosen@test.com",
     });
 
+    // Create a student role "Mahasiswa"
+    const studentRole = await createTestRoleWithPermissions("Mahasiswa", []);
+
     // Create a student user
     const student = await prisma.user.create({
       data: {
         email: "budi@test.com",
         name: "Budi Santoso",
         password: "hash",
-        roleId: role.id,
+        roleId: studentRole.id,
       },
     });
 
-    // Create group, materials, quizzes, enrollments
+    // Create group, materials, quizzes
     const group = await prisma.group.create({
       data: {
         name: "Python 101",
@@ -60,11 +63,6 @@ describe("Lecturer Groups Students Activity Endpoints", () => {
               passThreshold: 70,
             },
           ],
-        },
-        enrollments: {
-          create: {
-            studentId: student.id,
-          },
         },
       },
       include: {

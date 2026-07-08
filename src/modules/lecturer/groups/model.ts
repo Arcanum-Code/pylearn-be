@@ -106,6 +106,21 @@ export const LecturerGroupsModel = {
           started_at: t.String(),
           submitted_at: t.Union([t.String(), t.Null()]),
           time_spent_seconds: t.Union([t.Number(), t.Null()]),
+          questions: t.Optional(
+            t.Array(
+              t.Object({
+                question_id: t.String(),
+                question_text: t.String(),
+                question_type: t.Union([t.String(), t.Null()]),
+                student_answer: t.Union([t.String(), t.Null()]),
+                correct_answer: t.Union([t.String(), t.Null()]),
+                is_correct: t.Boolean(),
+                points_earned: t.Number(),
+                points_possible: t.Number(),
+                explanation: t.Union([t.String(), t.Null()]),
+              }),
+            ),
+          ),
         }),
       ),
       material_reading_timeline: t.Array(

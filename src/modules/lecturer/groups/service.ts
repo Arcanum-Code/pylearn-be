@@ -385,7 +385,17 @@ export class LecturerGroupsService {
           quiz: { groupId },
         },
         include: {
-          quiz: { select: { id: true, title: true, passThreshold: true } },
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              passThreshold: true,
+              questions: {
+                orderBy: { questionOrder: "asc" },
+              },
+            },
+          },
+          answers: true,
         },
         orderBy: { startedAt: "desc" },
       }),
@@ -415,6 +425,22 @@ export class LecturerGroupsService {
         );
       }
 
+      const questions = attempt.quiz.questions.map((q) => {
+        const ans = attempt.answers.find((a) => a.quizQuestionId === q.id);
+        const isCorrect = ans?.isCorrect ?? false;
+        return {
+          question_id: String(q.id),
+          question_text: q.questionText,
+          question_type: "SHORT_ANSWER",
+          student_answer: ans?.answerText ?? null,
+          correct_answer: q.answerText ?? null,
+          is_correct: isCorrect,
+          points_earned: isCorrect ? q.maxScore : 0,
+          points_possible: q.maxScore,
+          explanation: null,
+        };
+      });
+
       return {
         attempt_id: String(attempt.id),
         quiz_id: String(attempt.quizId),
@@ -427,6 +453,7 @@ export class LecturerGroupsService {
           ? attempt.submittedAt.toISOString()
           : null,
         time_spent_seconds: timeSpentSeconds,
+        questions,
       };
     });
 

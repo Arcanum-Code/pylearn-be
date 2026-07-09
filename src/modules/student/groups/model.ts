@@ -9,10 +9,22 @@ export const StudentMaterialItemSchema = z.object({
   completed_at: z.string().nullable(),
 });
 
+export const StudentGroupQuizItemSchema = z.object({
+  quiz_id: z.string(),
+  title: z.string(),
+  level_number: z.number().int(),
+  status: z.string(),
+  pass_threshold: z.number(),
+  is_passed: z.boolean().nullable(),
+  best_score: z.number().nullable(),
+  deadline: z.string().datetime().nullable(),
+});
+
 export const StudentMaterialListSchema = z.object({
   group_id: z.string(),
   group_name: z.string(),
   materials: z.array(StudentMaterialItemSchema),
+  quizzes: z.array(StudentGroupQuizItemSchema),
   progress: z.object({
     completed: z.number().int(),
     total: z.number().int(),
@@ -37,6 +49,8 @@ const QuizItemTimelineSchema = z.object({
   status: z.enum(["not_started", "in_progress", "completed"]),
   deadline: z.string().datetime().nullable(),
   bestScore: z.number().nullable(),
+  passThreshold: z.number(),
+  isPassed: z.boolean().nullable(),
   order: z.number().int(),
 });
 

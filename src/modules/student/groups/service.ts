@@ -20,6 +20,16 @@ export class StudentGroupService {
             },
           },
         },
+        quizzes: {
+          where: { isPublished: true },
+          orderBy: { levelNumber: "asc" },
+          include: {
+            QuizAttempt: {
+              where: { studentId },
+              orderBy: { score: "desc" },
+            },
+          },
+        },
       },
     });
 
@@ -51,10 +61,46 @@ export class StudentGroupService {
       };
     });
 
+    const quizzes = (group.quizzes || []).map((quiz) => {
+      const attempts = quiz.QuizAttempt;
+      const hasSubmitted = attempts.some((a) => a.submittedAt !== null);
+      const hasInProgress = attempts.some((a) => a.submittedAt === null);
+      let status = "not_started";
+
+      if (hasSubmitted) {
+        status = "completed";
+      } else if (hasInProgress) {
+        status = "in_progress";
+      }
+
+      const submittedAttempts = attempts.filter(
+        (a) => a.submittedAt !== null && a.score !== null,
+      );
+      const bestScore =
+        submittedAttempts.length > 0
+          ? Math.max(...submittedAttempts.map((a) => a.score!))
+          : null;
+
+      const isPassed =
+        bestScore !== null ? bestScore >= quiz.passThreshold : null;
+
+      return {
+        quiz_id: quiz.id.toString(),
+        title: quiz.title,
+        level_number: quiz.levelNumber,
+        status,
+        pass_threshold: quiz.passThreshold,
+        is_passed: isPassed,
+        best_score: bestScore,
+        deadline: quiz.endTime ? quiz.endTime.toISOString() : null,
+      };
+    });
+
     return {
       group_id: group.id,
       group_name: group.name,
       materials,
+      quizzes,
       progress: {
         completed: completedCount,
         total: materials.length,
@@ -153,6 +199,9 @@ export class StudentGroupService {
           ? Math.max(...submittedAttempts.map((a) => a.score!))
           : null;
 
+      const isPassed =
+        bestScore !== null ? bestScore >= quiz.passThreshold : null;
+
       return {
         type: "quiz" as const,
         id: quiz.id.toString(),
@@ -161,6 +210,8 @@ export class StudentGroupService {
         status,
         deadline: quiz.endTime ? quiz.endTime.toISOString() : null,
         bestScore,
+        passThreshold: quiz.passThreshold,
+        isPassed,
         order: quiz.levelNumber,
       };
     });

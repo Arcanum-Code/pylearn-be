@@ -3,6 +3,7 @@
 This document outlines the API endpoints available for students to access and interact with learning materials. All endpoints require a valid JWT `Authorization: Bearer <token>` header.
 
 ## Base URL
+
 All endpoints are relative to the root API path.
 
 ---
@@ -17,9 +18,9 @@ Retrieve a list of materials for a specific student group, along with the studen
 
 ### Path Parameters
 
-| Parameter | Type   | Description                                |
-| --------- | ------ | ------------------------------------------ |
-| `groupId` | string | The unique ID of the student group         |
+| Parameter | Type   | Description                        |
+| --------- | ------ | ---------------------------------- |
+| `groupId` | string | The unique ID of the student group |
 
 ### Response
 
@@ -46,6 +47,28 @@ Retrieve a list of materials for a specific student group, along with the studen
         "completed_at": null
       }
     ],
+    "quizzes": [
+      {
+        "quiz_id": "101",
+        "title": "Quiz Level 1: Python Syntax",
+        "level_number": 1,
+        "status": "completed",
+        "pass_threshold": 70.0,
+        "is_passed": true,
+        "best_score": 85.0,
+        "deadline": "2026-07-20T23:59:59.000Z"
+      },
+      {
+        "quiz_id": "102",
+        "title": "Quiz Level 2: Variables",
+        "level_number": 2,
+        "status": "not_started",
+        "pass_threshold": 75.0,
+        "is_passed": null,
+        "best_score": null,
+        "deadline": null
+      }
+    ],
     "progress": {
       "completed": 1,
       "total": 2
@@ -66,9 +89,9 @@ Retrieve detailed information and content for a specific material. Accessing thi
 
 ### Path Parameters
 
-| Parameter    | Type   | Description                    |
-| ------------ | ------ | ------------------------------ |
-| `materialId` | string | The unique ID of the material  |
+| Parameter    | Type   | Description                   |
+| ------------ | ------ | ----------------------------- |
+| `materialId` | string | The unique ID of the material |
 
 ### Response
 
@@ -106,20 +129,20 @@ Update the student's progress for a specific material, such as marking it as com
 
 ### Path Parameters
 
-| Parameter    | Type   | Description                    |
-| ------------ | ------ | ------------------------------ |
-| `materialId` | string | The unique ID of the material  |
+| Parameter    | Type   | Description                   |
+| ------------ | ------ | ----------------------------- |
+| `materialId` | string | The unique ID of the material |
 
 ### Request Body (`application/json`)
 
-| Field               | Type   | Required | Description                                                    |
-| ------------------- | ------ | -------- | -------------------------------------------------------------- |
-| `status`            | string | Yes      | Must be one of: `in_progress`, `completed`                     |
-| `scroll_percentage` | number | No       | The user's scroll percentage on the material (from `0` to `100`)|
+| Field               | Type   | Required | Description                                                      |
+| ------------------- | ------ | -------- | ---------------------------------------------------------------- |
+| `status`            | string | Yes      | Must be one of: `in_progress`, `completed`                       |
+| `scroll_percentage` | number | No       | The user's scroll percentage on the material (from `0` to `100`) |
 
 ### Response
 
-```json
+````json
 {
   "success": true,
   "message": "Success",
@@ -190,14 +213,19 @@ Retrieve a unified chronological timeline (`items`) of both materials and quizze
         "status": "not_started",
         "deadline": "2026-07-20T23:59:59.000Z",
         "bestScore": null,
+        "passThreshold": 70,
+        "isPassed": null,
         "order": 3
       }
     ]
   }
 }
-```
+````
 
 - **Unified Timeline**: Merges published materials (using `sequence`) and published quizzes (using `levelNumber`) into a single chronological timeline sorted by `order`.
 - **Hides Drafts**: Materials and quizzes that are not published are completely excluded.
 - **Student Progress**: Calculates the completion percentage of materials within the group.
+
+```
+
 ```

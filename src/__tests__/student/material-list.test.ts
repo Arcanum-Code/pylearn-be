@@ -60,9 +60,20 @@ describe("Student Material API - List", () => {
         publishedAt: new Date(Date.now() - 100000),
       },
     });
+
+    await prisma.quiz.create({
+      data: {
+        groupId,
+        title: "Quiz Level 1",
+        description: "Test quiz",
+        isPublished: true,
+        levelNumber: 1,
+        passThreshold: 75.0,
+      },
+    });
   });
 
-  it("should get group materials with default progress", async () => {
+  it("should get group materials with default progress and quizzes", async () => {
     const res = await app.handle(
       new Request(`http://localhost/student/groups/${groupId}/materials`, {
         headers: authHeaders,
@@ -74,5 +85,10 @@ describe("Student Material API - List", () => {
     expect(body.data.group_name).toBe("Test Group");
     expect(body.data.materials.length).toBe(2);
     expect(body.data.materials[0].status).toBe("not_started");
+    expect(body.data.quizzes.length).toBe(1);
+    expect(body.data.quizzes[0].title).toBe("Quiz Level 1");
+    expect(body.data.quizzes[0].pass_threshold).toBe(75.0);
+    expect(body.data.quizzes[0].is_passed).toBe(null);
+    expect(body.data.quizzes[0].best_score).toBe(null);
   });
 });

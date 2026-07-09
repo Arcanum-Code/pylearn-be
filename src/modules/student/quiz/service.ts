@@ -312,10 +312,19 @@ export abstract class StudentQuizService {
       );
     }
 
+    // Determine the next attempt number for this student/quiz
+    const lastAttempt = await prisma.quizAttempt.findFirst({
+      where: { quizId, studentId },
+      orderBy: { attemptNumber: "desc" },
+      select: { attemptNumber: true },
+    });
+    const nextAttemptNumber = (lastAttempt?.attemptNumber ?? 0) + 1;
+
     const attempt = await prisma.quizAttempt.create({
       data: {
         quizId,
         studentId,
+        attemptNumber: nextAttemptNumber,
       },
       select: ATTEMPT_SELECT,
     });
